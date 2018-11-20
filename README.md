@@ -80,6 +80,7 @@ apt install libpcl1 ros-kinetic-octomap-*
 ```bash
 cd ~/catkin_ws/src
 git clone https://github.com/PX4/avoidance.git
+git clone https://github.com/ethz-asl/yaml_cpp_catkin.git
 ```
 
 8. Actually build the avoidance node.
