@@ -54,6 +54,8 @@
   <build_depend>mavros</build_depend>
   <build_depend>mavros_extras</build_depend>
   <build_depend>mavros_msgs</build_depend>
+  <build_depend>yaml_cpp_catkin</build_depend>
+
 
   <run_depend>dynamic_reconfigure</run_depend>
   <run_depend>message_runtime</run_depend>
@@ -69,6 +71,8 @@
   <run_depend>mavros</run_depend>
   <run_depend>mavros_extras</run_depend>
   <run_depend>mavros_msgs</run_depend>
+  <run_depend>yaml_cpp_catkin</run_depend>
+
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
