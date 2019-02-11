@@ -231,13 +231,18 @@ class LocalPlannerNode {
                      bool& planner_is_healthy, bool& hover);
 
  private:
-  ros::NodeHandle nh_;
-  ros::NodeHandle nh_private_;
 
   avoidance::LocalPlannerNodeConfig rqt_param_config_;
 
   mavros_msgs::Altitude ground_distance_msg_;
   int path_length_ = 0;
+
+  ros::NodeHandle nh_;
+  ros::NodeHandle nh_private_;
+
+  ros::Timer cmdloop_timer_;
+  ros::CallbackQueue cmdloop_queue_;
+  ros::AsyncSpinner cmdloop_spinner_;
 
   // Subscribers
   ros::Subscriber pose_sub_;
@@ -255,6 +260,7 @@ class LocalPlannerNode {
   geometry_msgs::TwistStamped vel_msg_;
   bool armed_, offboard_, mission_, new_goal_;
   bool data_ready_ = false;
+  double spin_dt_;
 
   dynamic_reconfigure::Server<avoidance::LocalPlannerNodeConfig>* server_;
   boost::recursive_mutex config_mutex_;
@@ -305,6 +311,7 @@ class LocalPlannerNode {
   * @param[in] msg, vehicle position and orientation in ENU frame
   **/
   void stateCallback(const mavros_msgs::State& msg);
+  void cmdLoopCallback(const ros::TimerEvent& event);
 
   /**
   * @brief     reads parameters from launch file and yaml file
