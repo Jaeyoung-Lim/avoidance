@@ -18,10 +18,10 @@ namespace avoidance {
 LocalPlannerNode::LocalPlannerNode(const ros::NodeHandle& nh,
                                    const ros::NodeHandle& nh_private,
                                    const bool tf_spin_thread)
-        : nh_(nh),
-          nh_private_(nh_private),
-          cmdloop_spinner_(1, &cmdloop_queue_),
-          spin_dt_(1.0) {
+    : nh_(nh),
+      nh_private_(nh_private),
+      cmdloop_spinner_(1, &cmdloop_queue_),
+      spin_dt_(1.0) {
   local_planner_.reset(new LocalPlanner());
   wp_generator_.reset(new WaypointGenerator());
 
@@ -31,9 +31,9 @@ LocalPlannerNode::LocalPlannerNode(const ros::NodeHandle& nh,
       ros::Duration(tf::Transformer::DEFAULT_CACHE_TIME), tf_spin_thread);
 
   ros::TimerOptions timer_options(
-          ros::Duration(spin_dt_),
-          boost::bind(&LocalPlannerNode::cmdLoopCallback, this, _1),
-          &cmdloop_queue_);
+      ros::Duration(spin_dt_),
+      boost::bind(&LocalPlannerNode::cmdLoopCallback, this, _1),
+      &cmdloop_queue_);
 
   cmdloop_timer_ = nh_.createTimer(timer_options);
 
@@ -310,25 +310,24 @@ void LocalPlannerNode::stateCallback(const mavros_msgs::State& msg) {
 void LocalPlannerNode::cmdLoopCallback(const ros::TimerEvent& event) {
   hover_ = false;
 
-  #ifdef DISABLE_SIMULATION
-    startup_ = false;
-  #else
-    // visualize world in RVIZ
-    if (!world_path_.empty() && startup_) {
-      if (!world_visualizer_.visualizeRVIZWorld(world_path_)) {
-        ROS_WARN("Failed to visualize Rviz world");
-      }
-      startup_ = false;
+#ifdef DISABLE_SIMULATION
+  startup_ = false;
+#else
+  // visualize world in RVIZ
+  if (!world_path_.empty() && startup_) {
+    if (!world_visualizer_.visualizeRVIZWorld(world_path_)) {
+      ROS_WARN("Failed to visualize Rviz world");
     }
-  #endif
+    startup_ = false;
+  }
+#endif
 
   // Check if all information was received
   ros::Time now = ros::Time::now();
   ros::Duration since_last_cloud = now - last_wp_time_;
   ros::Duration since_start = now - start_time_;
 
-  checkFailsafe(since_last_cloud, since_start, planner_is_healthy_,
-                      hover_);
+  checkFailsafe(since_last_cloud, since_start, planner_is_healthy_, hover_);
 
   // If planner is not running, update planner info and get last results
   updatePlanner();
@@ -347,8 +346,7 @@ void LocalPlannerNode::cmdLoopCallback(const ros::TimerEvent& event) {
   position_received_ = false;
 
   // publish system status
-  if (now - t_status_sent_ > ros::Duration(0.2))
-    publishSystemStatus();
+  if (now - t_status_sent_ > ros::Duration(0.2)) publishSystemStatus();
 }
 
 void LocalPlannerNode::calculateWaypoints(bool hover) {
@@ -691,4 +689,10 @@ void LocalPlannerNode::checkFailsafe(ros::Duration since_last_cloud,
     }
   }
 }
+
+void LocalPlannerNode::setCompanionStatus(int status) {
+  status_msg_.state = status;
+}
+
+int LocalPlannerNode::getComapnionStatus() { return status_msg_.state; }
 }

@@ -14,7 +14,7 @@ TEST(LocalPlannerNodeTests, failsafe) {
 
   Node.position_received_ = true;
   Node.never_run_ = false;
-  Node.status_msg_.state = static_cast<int>(MAV_STATE::MAV_STATE_ACTIVE);
+  Node.setCompanionStatus(static_cast<int>(MAV_STATE::MAV_STATE_ACTIVE));
 
   avoidance::LocalPlannerNodeConfig config =
       avoidance::LocalPlannerNodeConfig::__getDefault__();
@@ -31,7 +31,7 @@ TEST(LocalPlannerNodeTests, failsafe) {
     since_last_cloud = since_last_cloud + ros::Duration(time_increment);
     since_start = since_start + ros::Duration(time_increment);
     EXPECT_TRUE(planner_is_healthy);
-    EXPECT_EQ(Node.status_msg_.state,
+    EXPECT_EQ(Node.getCompanionStatus(),
               static_cast<int>(MAV_STATE::MAV_STATE_ACTIVE));
   }
 
@@ -41,7 +41,7 @@ TEST(LocalPlannerNodeTests, failsafe) {
     since_last_cloud = since_last_cloud + ros::Duration(time_increment);
     since_start = since_start + ros::Duration(time_increment);
     EXPECT_TRUE(planner_is_healthy);
-    EXPECT_EQ(Node.status_msg_.state,
+    EXPECT_EQ(Node.getCompanionStatus(),
               static_cast<int>(MAV_STATE::MAV_STATE_CRITICAL));
   }
 
@@ -51,7 +51,7 @@ TEST(LocalPlannerNodeTests, failsafe) {
     since_last_cloud = since_last_cloud + ros::Duration(time_increment);
     since_start = since_start + ros::Duration(time_increment);
     EXPECT_FALSE(planner_is_healthy);
-    EXPECT_EQ(Node.status_msg_.state,
+    EXPECT_EQ(Node.getCompanionStatus(),
               static_cast<int>(MAV_STATE::MAV_STATE_FLIGHT_TERMINATION));
   }
 }

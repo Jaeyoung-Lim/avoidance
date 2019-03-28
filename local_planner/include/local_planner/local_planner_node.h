@@ -105,8 +105,6 @@ class LocalPlannerNode {
                    const bool tf_spin_thread = true);
   ~LocalPlannerNode();
 
-  mavros_msgs::CompanionProcessStatus status_msg_;
-
   std::string world_path_;
   bool never_run_ = true;
   bool position_received_ = false;
@@ -118,21 +116,6 @@ class LocalPlannerNode {
 
   ModelParameters model_params_;
 
-  ros::CallbackQueue pointcloud_queue_;
-  ros::CallbackQueue main_queue_;
-
-  geometry_msgs::PoseStamped hover_point_;
-  geometry_msgs::PoseStamped newest_pose_;
-  geometry_msgs::PoseStamped last_pose_;
-  geometry_msgs::Point newest_waypoint_position_;
-  geometry_msgs::Point last_waypoint_position_;
-  geometry_msgs::Point newest_adapted_waypoint_position_;
-  geometry_msgs::Point last_adapted_waypoint_position_;
-  geometry_msgs::PoseStamped goal_msg_;
-
-  ros::Time last_wp_time_;
-  ros::Time t_status_sent_;
-
   std::unique_ptr<LocalPlanner> local_planner_;
   std::unique_ptr<WaypointGenerator> wp_generator_;
   LocalPlannerVisualization visualizer_;
@@ -140,15 +123,6 @@ class LocalPlannerNode {
 #ifndef DISABLE_SIMULATION
   WorldVisualizer world_visualizer_;
 #endif
-
-  ros::Publisher mavros_pos_setpoint_pub_;
-  ros::Publisher mavros_vel_setpoint_pub_;
-  ros::Publisher mavros_obstacle_free_path_pub_;
-  ros::Publisher mavros_obstacle_distance_pub_;
-  ros::ServiceClient mavros_set_mode_client_;
-  ros::ServiceClient get_px4_param_client_;
-  ros::Publisher mavros_system_status_pub_;
-  tf::TransformListener* tf_listener_;
 
   std::mutex running_mutex_;  ///< guard against concurrent access to input &
                               /// output data (point cloud, position, ...)
@@ -229,15 +203,20 @@ class LocalPlannerNode {
   **/
   void checkFailsafe(ros::Duration since_last_cloud, ros::Duration since_start,
                      bool& planner_is_healthy, bool& hover);
+  /**
+  * @brief     Set companion status on planner node
+  **/
+  void setCompanionStatus(int status);
+
+  /**
+  * @brief     Get companion status from planner node
+  **/
+  int getCompanionStatus();
 
  private:
-
   avoidance::LocalPlannerNodeConfig rqt_param_config_;
 
   std::thread* worker;
-
-  mavros_msgs::Altitude ground_distance_msg_;
-  int path_length_ = 0;
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
@@ -245,6 +224,13 @@ class LocalPlannerNode {
   ros::Timer cmdloop_timer_;
   ros::CallbackQueue cmdloop_queue_;
   ros::AsyncSpinner cmdloop_spinner_;
+
+  // Publishers
+  ros::Publisher mavros_pos_setpoint_pub_;
+  ros::Publisher mavros_vel_setpoint_pub_;
+  ros::Publisher mavros_obstacle_free_path_pub_;
+  ros::Publisher mavros_obstacle_distance_pub_;
+  ros::Publisher mavros_system_status_pub_;
 
   // Subscribers
   ros::Subscriber pose_sub_;
@@ -257,11 +243,34 @@ class LocalPlannerNode {
   ros::Subscriber distance_sensor_sub_;
   ros::Subscriber px4_param_sub_;
 
+  // Service
+  ros::ServiceClient mavros_set_mode_client_;
+  ros::ServiceClient get_px4_param_client_;
+
+  ros::CallbackQueue pointcloud_queue_;
+  ros::CallbackQueue main_queue_;
+
   ros::Time start_time_;
+  ros::Time last_wp_time_;
+  ros::Time t_status_sent_;
+
+  geometry_msgs::TwistStamped vel_msg_;
+  geometry_msgs::PoseStamped hover_point_;
+  geometry_msgs::PoseStamped newest_pose_;
+  geometry_msgs::PoseStamped last_pose_;
+  geometry_msgs::Point newest_waypoint_position_;
+  geometry_msgs::Point last_waypoint_position_;
+  geometry_msgs::Point newest_adapted_waypoint_position_;
+  geometry_msgs::Point last_adapted_waypoint_position_;
+  geometry_msgs::PoseStamped goal_msg_;
+  mavros_msgs::Altitude ground_distance_msg_;
+  mavros_msgs::CompanionProcessStatus status_msg_;
+
+  tf::TransformListener* tf_listener_;
 
   std::vector<float> algo_time;
 
-  geometry_msgs::TwistStamped vel_msg_;
+  int path_length_ = 0;
   bool armed_, offboard_, mission_, new_goal_;
   bool data_ready_ = false;
   bool hover_, planner_is_healthy_, startup_, callPx4Params_;
@@ -316,6 +325,10 @@ class LocalPlannerNode {
   * @param[in] msg, vehicle position and orientation in ENU frame
   **/
   void stateCallback(const mavros_msgs::State& msg);
+
+  /**
+  * @brief     callaback for local planner node loop
+  **/
   void cmdLoopCallback(const ros::TimerEvent& event);
 
   /**
