@@ -694,5 +694,5 @@ void LocalPlannerNode::setCompanionStatus(int status) {
   status_msg_.state = status;
 }
 
-int LocalPlannerNode::getComapnionStatus() { return status_msg_.state; }
+int LocalPlannerNode::getCompanionStatus() { return status_msg_.state; }
 }
