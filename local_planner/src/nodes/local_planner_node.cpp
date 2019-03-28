@@ -100,6 +100,17 @@ LocalPlannerNode::LocalPlannerNode(const ros::NodeHandle& nh,
 
   // pass initial goal into local planner
   local_planner_->applyGoal();
+
+  start_time_ = ros::Time::now();
+  hover_ = false;
+  planner_is_healthy_ = true;
+  avoidanceOutput planner_output;
+  local_planner_->disable_rise_to_goal_altitude_ =
+      disable_rise_to_goal_altitude_;
+  startup_ = true;
+  callPx4Params_ = true;
+  status_msg_.state = (int)MAV_STATE::MAV_STATE_BOOT;
+
 }
 
 LocalPlannerNode::~LocalPlannerNode() {
@@ -294,8 +305,49 @@ void LocalPlannerNode::stateCallback(const mavros_msgs::State& msg) {
 }
 
 void LocalPlannerNode::cmdLoopCallback(const ros::TimerEvent& event) {
-  return;
+  hover_ = false;
+
+  #ifdef DISABLE_SIMULATION
+    startup_ = false;
+  #else
+    // visualize world in RVIZ
+    if (!world_path_.empty() && startup_) {
+      if (!world_visualizer_.visualizeRVIZWorld(world_path_)) {
+        ROS_WARN("Failed to visualize Rviz world");
+      }
+      startup_ = false;
+    }
+  #endif
+
+  // Check if all information was received
+  ros::Time now = ros::Time::now();
+  ros::Duration since_last_cloud = now - last_wp_time_;
+  ros::Duration since_start = now - start_time_;
+
+  checkFailsafe(since_last_cloud, since_start, planner_is_healthy_,
+                      hover_);
+
+  // If planner is not running, update planner info and get last results
+  updatePlanner();
+
+  // send waypoint
+  if (!never_run_ && planner_is_healthy_) {
+    calculateWaypoints(hover);
+    if (!hover) status_msg_.state = (int)MAV_STATE::MAV_STATE_ACTIVE;
+  } else {
+    for (size_t i = 0; i < cameras_.size(); ++i) {
+      // once the camera info have been set once, unsubscribe from topic
+      cameras_[i].camera_info_sub_.shutdown();
+    }
+  }
+
+  position_received_ = false;
+
+  // publish system status
+  if (now - t_status_sent_ > ros::Duration(0.2))
+    publishSystemStatus();
 }
+
 void LocalPlannerNode::calculateWaypoints(bool hover) {
   bool is_airborne = armed_ && (mission_ || offboard_ || hover);
 

@@ -255,11 +255,14 @@ class LocalPlannerNode {
   ros::Subscriber distance_sensor_sub_;
   ros::Subscriber px4_param_sub_;
 
+  ros::Time start_time_;
+
   std::vector<float> algo_time;
 
   geometry_msgs::TwistStamped vel_msg_;
   bool armed_, offboard_, mission_, new_goal_;
   bool data_ready_ = false;
+  bool hover_, planner_is_healthy_, startup_, callPx4Params_;
   double spin_dt_;
 
   dynamic_reconfigure::Server<avoidance::LocalPlannerNodeConfig>* server_;
