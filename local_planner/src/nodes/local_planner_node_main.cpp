@@ -12,12 +12,6 @@ int main(int argc, char** argv) {
   ros::NodeHandle nh_private("");
 
   LocalPlannerNode Node(nh, nh_private, true);
-
-
-  std::thread worker(&LocalPlannerNode::threadFunction, &Node);
-
-  Node.should_exit_ = true;
-  Node.data_ready_cv_.notify_all();
-  worker.join();
+  
   return 0;
 }

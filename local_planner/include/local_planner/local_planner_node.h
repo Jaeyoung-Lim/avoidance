@@ -234,6 +234,8 @@ class LocalPlannerNode {
 
   avoidance::LocalPlannerNodeConfig rqt_param_config_;
 
+  std::thread* worker;
+
   mavros_msgs::Altitude ground_distance_msg_;
   int path_length_ = 0;
 

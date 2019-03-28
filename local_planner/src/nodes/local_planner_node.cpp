@@ -110,12 +110,15 @@ LocalPlannerNode::LocalPlannerNode(const ros::NodeHandle& nh,
   startup_ = true;
   callPx4Params_ = true;
   status_msg_.state = (int)MAV_STATE::MAV_STATE_BOOT;
-
+  worker = new std::thread(&LocalPlannerNode::threadFunction, this);
 }
 
 LocalPlannerNode::~LocalPlannerNode() {
   delete server_;
   delete tf_listener_;
+  should_exit_ = true;
+  data_ready_cv_.notify_all();
+  worker->join();
 }
 
 void LocalPlannerNode::readParams() {
