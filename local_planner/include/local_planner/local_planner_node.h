@@ -127,6 +127,8 @@ class LocalPlannerNode {
 
   std::mutex data_ready_mutex_;
   std::condition_variable data_ready_cv_;
+  bool never_run_ = true;
+  bool position_received_ = false;
 
   /**
   * @brief     handles threads for data publication and subscription
@@ -260,8 +262,6 @@ class LocalPlannerNode {
   bool planner_is_healthy_;
   bool startup_;
   bool callPx4Params_;
-  bool never_run_ = true;
-  bool position_received_ = false;
   bool disable_rise_to_goal_altitude_;
   bool accept_goal_input_topic_;
   double spin_dt_;
