@@ -260,6 +260,13 @@ class LocalPlannerNode {
   geometry_msgs::TwistStamped vel_msg_;
   bool armed_, offboard_, mission_, new_goal_;
   bool data_ready_ = false;
+  bool hover_;
+  bool planner_is_healthy_;
+  bool startup_;
+  bool callPx4Params_;
+  ros::Time start_time_;
+
+
   double spin_dt_;
 
   dynamic_reconfigure::Server<avoidance::LocalPlannerNodeConfig>* server_;
