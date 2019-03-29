@@ -113,6 +113,9 @@ LocalPlannerNode::LocalPlannerNode(const ros::NodeHandle& nh,
 }
 
 LocalPlannerNode::~LocalPlannerNode() {
+  should_exit_ = true;
+  data_ready_cv_.notify_all();
+
   delete server_;
   delete tf_listener_;
 }
