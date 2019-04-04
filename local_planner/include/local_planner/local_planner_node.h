@@ -135,6 +135,11 @@ class LocalPlannerNode {
   **/
   void threadFunction();
 
+  /**
+  * @brief     start spinners
+  **/
+  void startNode();
+
   void updatePlanner();
 
   /**
