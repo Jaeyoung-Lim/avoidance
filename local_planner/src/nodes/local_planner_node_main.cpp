@@ -4,8 +4,8 @@ using namespace avoidance;
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "local_planner_node");
-  ros::NodeHandle nh("~");
-  ros::NodeHandle nh_private("");
+  ros::NodeHandle nh("");
+  ros::NodeHandle nh_private("~");
 
   LocalPlannerNode Node(nh, nh_private, true);
   Node.startNode();

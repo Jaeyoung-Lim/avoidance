@@ -29,7 +29,7 @@ LocalPlannerNode::LocalPlannerNode(const ros::NodeHandle& nh,
 
   // Set up Dynamic Reconfigure Server
   server_ = new dynamic_reconfigure::Server<avoidance::LocalPlannerNodeConfig>(
-      config_mutex_, nh_);
+      config_mutex_, nh_private_);
   dynamic_reconfigure::Server<avoidance::LocalPlannerNodeConfig>::CallbackType
       f;
   f = boost::bind(&LocalPlannerNode::dynamicReconfigureCallback, this, _1, _2);
@@ -114,18 +114,19 @@ void LocalPlannerNode::startNode() {
 void LocalPlannerNode::readParams() {
   // Parameter from launch file
   auto goal = toPoint(local_planner_->getGoal());
-  nh_.param<double>("goal_x_param", goal.x, 9.0);
-  nh_.param<double>("goal_y_param", goal.y, 13.0);
-  nh_.param<double>("goal_z_param", goal.z, 3.5);
-  nh_.param<bool>("disable_rise_to_goal_altitude",
-                  disable_rise_to_goal_altitude_, false);
-  nh_.param<bool>("accept_goal_input_topic", accept_goal_input_topic_, false);
+  nh_private_.param<double>("goal_x_param", goal.x, 9.0);
+  nh_private_.param<double>("goal_y_param", goal.y, 13.0);
+  nh_private_.param<double>("goal_z_param", goal.z, 3.5);
+  nh_private_.param<bool>("disable_rise_to_goal_altitude",
+                          disable_rise_to_goal_altitude_, false);
+  nh_private_.param<bool>("accept_goal_input_topic", accept_goal_input_topic_,
+                          false);
 
   std::vector<std::string> camera_topics;
   nh_.getParam("pointcloud_topics", camera_topics);
   initializeCameraSubscribers(camera_topics);
 
-  nh_.param<std::string>("world_name", world_path_, "");
+  nh_private_.param<std::string>("world_name", world_path_, "");
   goal_msg_.pose.position = goal;
 }
 
