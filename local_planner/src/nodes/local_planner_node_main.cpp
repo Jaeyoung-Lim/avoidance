@@ -10,11 +10,8 @@ int main(int argc, char** argv) {
   LocalPlannerNode Node(nh, nh_private, true);
   Node.startNode();
 
-  std::thread worker(&LocalPlannerNode::threadFunction, &Node);
-
   std::thread worker_params(&LocalPlannerNode::checkPx4Parameters, &Node);
 
-  worker.join();
   worker_params.join();
 
   for (size_t i = 0; i < Node.cameras_.size(); ++i) {

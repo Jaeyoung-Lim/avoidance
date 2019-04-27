@@ -18,7 +18,7 @@ namespace avoidance {
 LocalPlannerNode::LocalPlannerNode(const ros::NodeHandle& nh,
                                    const ros::NodeHandle& nh_private,
                                    const bool tf_spin_thread)
-    : nh_(nh), nh_private_(nh_private), spin_dt_(0.1) {
+    : nh_(nh), nh_private_(nh_private), spin_dt_(0.1), replan_dt_(0.1) {
   local_planner_.reset(new LocalPlanner());
   wp_generator_.reset(new WaypointGenerator());
 
@@ -101,14 +101,23 @@ LocalPlannerNode::~LocalPlannerNode() {
 }
 
 void LocalPlannerNode::startNode() {
-  ros::TimerOptions timer_options(
+  ros::TimerOptions cmd_timer_options(
       ros::Duration(spin_dt_),
       boost::bind(&LocalPlannerNode::cmdLoopCallback, this, _1),
       &cmdloop_queue_);
-  cmdloop_timer_ = nh_.createTimer(timer_options);
+  cmdloop_timer_ = nh_.createTimer(cmd_timer_options);
 
   cmdloop_spinner_.reset(new ros::AsyncSpinner(1, &cmdloop_queue_));
   cmdloop_spinner_->start();
+
+  ros::TimerOptions planner_timer_options(
+      ros::Duration(replan_dt_),
+      boost::bind(&LocalPlannerNode::plannerLoopCallback, this, _1),
+      &cmdloop_queue_);
+  plannerloop_timer_ = nh_.createTimer(planner_timer_options);
+
+  plannerloop_spinner_.reset(new ros::AsyncSpinner(1, &plannerloop_queue_));
+  plannerloop_spinner_->start();
 }
 
 void LocalPlannerNode::readParams() {
@@ -674,31 +683,26 @@ void LocalPlannerNode::publishLaserScan() const {
   }
 }
 
-void LocalPlannerNode::threadFunction() {
-  while (!should_exit_) {
-    // wait for data
-    {
-      std::unique_lock<std::mutex> lk(data_ready_mutex_);
-      data_ready_cv_.wait(lk, [this] { return data_ready_ && !should_exit_; });
-      data_ready_ = false;
-    }
+void LocalPlannerNode::plannerLoopCallback(const ros::TimerEvent& event) {
+  // wait for data
+  {
+    std::unique_lock<std::mutex> lk(data_ready_mutex_);
+    data_ready_cv_.wait(lk, [this] { return data_ready_ && !should_exit_; });
+    data_ready_ = false;
+  }
+  {
+    std::lock_guard<std::mutex> guard(running_mutex_);
+    never_run_ = false;
+    std::clock_t start_time_ = std::clock();
+    local_planner_->runPlanner();
+    visualizer_.visualizePlannerData(
+        *(local_planner_.get()), newest_waypoint_position_,
+        newest_adapted_waypoint_position_, newest_pose_);
+    publishLaserScan();
+    last_wp_time_ = ros::Time::now();
 
-    if (should_exit_) break;
-
-    {
-      std::lock_guard<std::mutex> guard(running_mutex_);
-      never_run_ = false;
-      std::clock_t start_time_ = std::clock();
-      local_planner_->runPlanner();
-      visualizer_.visualizePlannerData(
-          *(local_planner_.get()), newest_waypoint_position_,
-          newest_adapted_waypoint_position_, newest_pose_);
-      publishLaserScan();
-      last_wp_time_ = ros::Time::now();
-
-      ROS_DEBUG("\033[0;35m[OA]Planner calculation time: %2.2f ms \n \033[0m",
-                (std::clock() - start_time_) / (double)(CLOCKS_PER_SEC / 1000));
-    }
+    ROS_DEBUG("\033[0;35m[OA]Planner calculation time: %2.2f ms \n \033[0m",
+              (std::clock() - start_time_) / (double)(CLOCKS_PER_SEC / 1000));
   }
 }
 

@@ -108,6 +108,7 @@ class LocalPlannerNode {
   std::unique_ptr<LocalPlanner> local_planner_;
   std::unique_ptr<WaypointGenerator> wp_generator_;
   std::unique_ptr<ros::AsyncSpinner> cmdloop_spinner_;
+  std::unique_ptr<ros::AsyncSpinner> plannerloop_spinner_;
 
   LocalPlannerVisualization visualizer_;
 
@@ -127,8 +128,7 @@ class LocalPlannerNode {
   /**
   * @brief     handles threads for data publication and subscription
   **/
-  void threadFunction();
-
+  void plannerLoopCallback(const ros::TimerEvent& event);
   /**
   * @brief     start spinners
   **/
@@ -226,7 +226,9 @@ class LocalPlannerNode {
   ros::NodeHandle nh_private_;
 
   ros::Timer cmdloop_timer_;
+  ros::Timer plannerloop_timer_;
   ros::CallbackQueue cmdloop_queue_;
+  ros::CallbackQueue plannerloop_queue_;
 
   // Publishers
   ros::Publisher mavros_pos_setpoint_pub_;
@@ -280,6 +282,7 @@ class LocalPlannerNode {
   bool disable_rise_to_goal_altitude_;
   bool accept_goal_input_topic_;
   double spin_dt_;
+  double replan_dt_;
   int path_length_ = 0;
   std::vector<float> algo_time;
 
