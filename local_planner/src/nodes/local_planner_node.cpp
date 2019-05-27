@@ -18,7 +18,8 @@ namespace avoidance {
 LocalPlannerNode::LocalPlannerNode(const ros::NodeHandle& nh,
                                    const ros::NodeHandle& nh_private,
                                    const bool tf_spin_thread)
-    : nh_(nh), nh_private_(nh_private), spin_dt_(0.1) {
+    : nh_(nh), nh_private_(nh_private), camera_data_(nh_),
+spin_dt_(0.1) {
   local_planner_.reset(new LocalPlanner());
   wp_generator_.reset(new WaypointGenerator());
 
@@ -90,6 +91,10 @@ LocalPlannerNode::LocalPlannerNode(const ros::NodeHandle& nh,
   callPx4Params_ = true;
   armed_ = false;
   start_time_ = ros::Time::now();
+  for (size_t i = 0; i < camera_data_.cameras_.size(); i++) {
+      camera_data_.cameras_[i].transform_thread_ =
+        std::thread(&LocalPlannerNode::pointCloudTransformThread, this, i);
+  }
 }
 
 LocalPlannerNode::~LocalPlannerNode() {
@@ -121,81 +126,17 @@ void LocalPlannerNode::readParams() {
                   disable_rise_to_goal_altitude_, false);
   nh_.param<bool>("accept_goal_input_topic", accept_goal_input_topic_, false);
 
-  std::vector<std::string> camera_topics;
-  nh_.getParam("pointcloud_topics", camera_topics);
-  initializeCameraSubscribers(camera_topics);
-
   goal_msg_.pose.position = goal;
 }
 
-void LocalPlannerNode::initializeCameraSubscribers(
-    std::vector<std::string>& camera_topics) {
-  cameras_.resize(camera_topics.size());
-
-  // create sting containing the topic with the camera info from
-  // the pointcloud topic
-  std::string s;
-  s.reserve(50);
-  std::vector<std::string> camera_info(camera_topics.size(), s);
-
-  for (size_t i = 0; i < camera_topics.size(); i++) {
-    cameras_[i].trans_ready_mutex_.reset(new std::mutex);
-    cameras_[i].trans_ready_cv_.reset(new std::condition_variable);
-    cameras_[i].cloud_ready_mutex_.reset(new std::mutex);
-    cameras_[i].cloud_ready_cv_.reset(new std::condition_variable);
-    cameras_[i].transformed_ = false;
-
-    cameras_[i].pointcloud_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(
-        camera_topics[i], 1,
-        boost::bind(&LocalPlannerNode::pointCloudCallback, this, _1, i));
-    cameras_[i].topic_ = camera_topics[i];
-    cameras_[i].received_ = false;
-
-    // get each namespace in the pointcloud topic and construct the camera_info
-    // topic
-    std::vector<std::string> name_space;
-    boost::split(name_space, camera_topics[i], [](char c) { return c == '/'; });
-    for (int k = 0, name_spaces = name_space.size() - 1; k < name_spaces; ++k) {
-      camera_info[i].append(name_space[k]);
-      camera_info[i].append("/");
-    }
-    camera_info[i].append("camera_info");
-    cameras_[i].camera_info_sub_ = nh_.subscribe<sensor_msgs::CameraInfo>(
-        camera_info[i], 1,
-        boost::bind(&LocalPlannerNode::cameraInfoCallback, this, _1, i));
-    cameras_[i].transform_thread_ =
-        std::thread(&LocalPlannerNode::pointCloudTransformThread, this, i);
-  }
-}
-
-size_t LocalPlannerNode::numReceivedClouds() {
-  size_t num_received_clouds = 0;
-  for (size_t i = 0; i < cameras_.size(); i++) {
-    if (cameras_[i].received_) num_received_clouds++;
-  }
-  return num_received_clouds;
-}
-
-size_t LocalPlannerNode::numTransformedClouds() {
-  size_t num_transformed_clouds = 0;
-  for (size_t i = 0; i < cameras_.size(); i++) {
-    std::unique_lock<std::mutex> lk(*(cameras_[i].trans_ready_mutex_));
-    cameras_[i].trans_ready_cv_->wait_for(
-        lk, std::chrono::milliseconds(30),
-        [this, i] { return cameras_[i].transformed_; });
-    if (cameras_[i].transformed_) num_transformed_clouds++;
-  }
-  return num_transformed_clouds;
-}
-
 void LocalPlannerNode::updatePlanner() {
-  if (cameras_.size() == numReceivedClouds() && cameras_.size() != 0) {
-    if (cameras_.size() == numTransformedClouds()) {
+  if (camera_data_.cameras_.size() == camera_data_.numReceivedClouds() && camera_data_.cameras_.size() != 0) {
+    if (camera_data_.cameras_.size() == camera_data_.numTransformedClouds()) {
       if (running_mutex_.try_lock()) {
         updatePlannerInfo();
         // reset all clouds to not yet received
-        for (size_t i = 0; i < cameras_.size(); i++) {
-          cameras_[i].received_ = false;
+        for (size_t i = 0; i < camera_data_.cameras_.size(); i++) {
+          camera_data_.cameras_[i].received_ = false;
         }
         wp_generator_->setPlannerInfo(local_planner_->getAvoidanceOutput());
         running_mutex_.unlock();
@@ -212,9 +153,9 @@ bool LocalPlannerNode::canUpdatePlannerInfo() {
   // Check if we have a transformation available at the time of the current
   // point cloud
   size_t missing_transforms = 0;
-  for (size_t i = 0; i < cameras_.size(); ++i) {
+  for (size_t i = 0; i < camera_data_.cameras_.size(); ++i) {
     if (!tf_listener_->canTransform(
-            "/local_origin", cameras_[i].newest_cloud_msg_.header.frame_id,
+            "/local_origin", camera_data_.cameras_[i].newest_cloud_msg_.header.frame_id,
             ros::Time(0))) {
       missing_transforms++;
     }
@@ -225,10 +166,10 @@ bool LocalPlannerNode::canUpdatePlannerInfo() {
 void LocalPlannerNode::updatePlannerInfo() {
   // update the point cloud
   local_planner_->original_cloud_vector_.clear();
-  for (size_t i = 0; i < cameras_.size(); ++i) {
+  for (size_t i = 0; i < camera_data_.cameras_.size(); ++i) {
     try {
       local_planner_->original_cloud_vector_.push_back(
-          std::move(cameras_[i].pcl_cloud));
+          std::move(camera_data_.cameras_[i].pcl_cloud));
     } catch (tf::TransformException& ex) {
       ROS_ERROR("Received an exception trying to transform a pointcloud: %s",
                 ex.what());
@@ -530,17 +471,9 @@ void LocalPlannerNode::printPointInfo(double x, double y, double z) {
   ROS_INFO("-------------------------------------------- \n");
 }
 
-void LocalPlannerNode::pointCloudCallback(
-    const sensor_msgs::PointCloud2::ConstPtr& msg, int index) {
-  cameras_[index].newest_cloud_msg_ = *msg;  // FIXME: avoid a copy
-  cameras_[index].received_ = true;
+  // local_planner_->setFOV(h_fov, v_fov);
+  // wp_generator_->setFOV(h_fov, v_fov);
 
-  {
-    std::unique_lock<std::mutex> lck(*(cameras_[index].cloud_ready_mutex_));
-    cameras_[index].transformed_ = false;
-    cameras_[index].cloud_ready_cv_->notify_one();
-  }
-}
 
 void LocalPlannerNode::cameraInfoCallback(
     const sensor_msgs::CameraInfo::ConstPtr& msg, int index) {
@@ -630,10 +563,10 @@ void LocalPlannerNode::checkFailsafe(ros::Duration since_last_cloud,
         hover = true;
         setSystemStatus(MAV_STATE::MAV_STATE_CRITICAL);
         std::string not_received = "";
-        for (size_t i = 0; i < cameras_.size(); i++) {
-          if (!cameras_[i].received_) {
+        for (size_t i = 0; i < camera_data_.cameras_.size(); i++) {
+          if (!camera_data_.cameras_[i].received_) {
             not_received.append(" , no cloud received on topic ");
-            not_received.append(cameras_[i].topic_);
+            not_received.append(camera_data_.cameras_[i].topic_);
           }
         }
         if (!canUpdatePlannerInfo()) {
@@ -658,19 +591,19 @@ void LocalPlannerNode::checkFailsafe(ros::Duration since_last_cloud,
 void LocalPlannerNode::pointCloudTransformThread(int index) {
   while (!should_exit_) {
     {
-      std::unique_lock<std::mutex> lk(*(cameras_[index].cloud_ready_mutex_));
-      cameras_[index].cloud_ready_cv_->wait(lk);
+      std::unique_lock<std::mutex> lk(*(camera_data_.cameras_[index].cloud_ready_mutex_));
+      camera_data_.cameras_[index].cloud_ready_cv_->wait(lk);
     }
 
     if (should_exit_) break;
 
     if (tf_listener_->canTransform(
-            "/local_origin", cameras_[index].newest_cloud_msg_.header.frame_id,
+            "/local_origin", camera_data_.cameras_[index].newest_cloud_msg_.header.frame_id,
             ros::Time(0))) {
       try {
         pcl::PointCloud<pcl::PointXYZ> pcl_cloud;
         // transform message to pcl type
-        pcl::fromROSMsg(cameras_[index].newest_cloud_msg_, pcl_cloud);
+        pcl::fromROSMsg(camera_data_.cameras_[index].newest_cloud_msg_, pcl_cloud);
 
         // remove nan padding
         std::vector<int> dummy_index;
@@ -681,17 +614,17 @@ void LocalPlannerNode::pointCloudTransformThread(int index) {
         pcl_ros::transformPointCloud("/local_origin", pcl_cloud, pcl_cloud,
                                      *tf_listener_);
 
-        std::unique_lock<std::mutex> lk(*(cameras_[index].cloud_ready_mutex_));
-        cameras_[index].transformed_ = true;
-        cameras_[index].pcl_cloud = std::move(pcl_cloud);
+        std::unique_lock<std::mutex> lk(*(camera_data_.cameras_[index].cloud_ready_mutex_));
+        camera_data_.cameras_[index].transformed_ = true;
+        camera_data_.cameras_[index].pcl_cloud = std::move(pcl_cloud);
       } catch (tf::TransformException& ex) {
         ROS_ERROR("Received an exception trying to transform a pointcloud: %s",
                   ex.what());
       }
     }
     {
-      std::unique_lock<std::mutex> lk(*(cameras_[index].trans_ready_mutex_));
-      cameras_[index].trans_ready_cv_->notify_one();
+      std::unique_lock<std::mutex> lk(*(camera_data_.cameras_[index].trans_ready_mutex_));
+      camera_data_.cameras_[index].trans_ready_cv_->notify_one();
     }
   }
 }

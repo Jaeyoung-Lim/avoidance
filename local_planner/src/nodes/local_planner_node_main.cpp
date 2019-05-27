@@ -17,9 +17,9 @@ int main(int argc, char** argv) {
   worker.join();
   worker_params.join();
 
-  for (size_t i = 0; i < Node.cameras_.size(); ++i) {
-    Node.cameras_[i].cloud_ready_cv_->notify_all();
-    Node.cameras_[i].transform_thread_.join();
+  for (size_t i = 0; i < Node.camera_data_.cameras_.size(); ++i) {
+    Node.camera_data_.cameras_[i].cloud_ready_cv_->notify_all();
+    Node.camera_data_.cameras_[i].transform_thread_.join();
   }
 
   return 0;
