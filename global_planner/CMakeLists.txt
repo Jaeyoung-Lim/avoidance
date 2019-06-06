@@ -158,6 +158,7 @@ add_library(node
 )
 add_library(global_planner
   src/library/global_planner.cpp
+  src/library/motionprimitive_planner.cpp
 )
 
 ## Add cmake target dependencies of the library
