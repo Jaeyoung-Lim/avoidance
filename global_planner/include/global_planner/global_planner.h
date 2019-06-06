@@ -105,7 +105,7 @@ class GlobalPlanner {
   void setGoal(const GoalCell& goal);
   void setPath(const std::vector<Cell>& path);
 
-  bool updateFullOctomap(const octomap_msgs::Octomap& msg);
+  bool updateFullOctomap(octomap::OcTree* octomap_world);
 
   void getOpenNeighbors(const Cell& cell, std::vector<CellDistancePair>& neighbors, bool is_3D);
   bool isNearWall(const Cell& cell);

@@ -125,6 +125,8 @@ class GlobalPlannerNode {
   double simplify_margin_;
 
   avoidance::AvoidanceNode avoidance_node_;
+  octomap::OcTree* octomap_world_;
+
 #ifndef DISABLE_SIMULATION
   std::unique_ptr<avoidance::WorldVisualizer> world_visualizer_;
 #endif
