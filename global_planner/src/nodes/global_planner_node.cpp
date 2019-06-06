@@ -2,8 +2,14 @@
 
 namespace global_planner {
 
-GlobalPlannerNode::GlobalPlannerNode(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
-    : nh_(nh), nh_private_(nh_private), avoidance_node_(nh, nh_private), cmdloop_dt_(0.1), plannerloop_dt_(1.0) {
+GlobalPlannerNode::GlobalPlannerNode(const ros::NodeHandle& nh,
+                                     const ros::NodeHandle& nh_private)
+    : nh_(nh),
+      nh_private_(nh_private),
+      avoidance_node_(nh, nh_private),
+      motionprimitive_planner_(nh),
+      cmdloop_dt_(0.1),
+      plannerloop_dt_(1.0) {
   // Set up Dynamic Reconfigure Server
   dynamic_reconfigure::Server<global_planner::GlobalPlannerNodeConfig>::CallbackType f;
   f = boost::bind(&GlobalPlannerNode::dynamicReconfigureCallback, this, _1, _2);
@@ -193,6 +199,9 @@ void GlobalPlannerNode::positionCallback(const geometry_msgs::PoseStamped& msg) 
   listener_.transformPose("world", ros::Time(0), msg, "local_origin", last_pos_);  // 90 deg fix
 
   global_planner_.setPose(last_pos_);
+  current_pos_(0) = msg.pose.position.x;
+  current_pos_(1) = msg.pose.position.y;
+  current_pos_(2) = msg.pose.position.z;
 
   // Check if a new goal is needed
   if (num_pos_msg_++ % 10 == 0) {
@@ -312,6 +321,10 @@ void GlobalPlannerNode::cmdLoopCallback(const ros::TimerEvent& event) {
   ros::Duration since_start = now - start_time_;
 
   avoidance_node_.checkFailsafe(since_last_cloud, since_start, hover_);
+  
+  motionprimitive_planner_.setInitialState(current_pos_);
+  motionprimitive_planner_.GetOptimalPath();
+
   publishSetpoint();
 }
 
@@ -323,6 +336,7 @@ void GlobalPlannerNode::plannerLoopCallback(const ros::TimerEvent& event) {
   }
 
   planPath();
+  // motionprimitive_planner_.SetCurrentGoal(path_);
 
   // Print and publish info
   if (is_in_goal && !waypoints_.empty()) {

@@ -37,6 +37,7 @@
 #include "global_planner/global_planner.h"
 #include "global_planner/search_tools.h"
 #include "global_planner/visitor.h"
+#include "global_planner/motionprimitive_planner.h"
 
 #ifndef DISABLE_SIMULATION
 #include <avoidance/rviz_world_loader.h>
@@ -103,6 +104,8 @@ class GlobalPlannerNode {
   geometry_msgs::PoseStamped current_goal_;
   geometry_msgs::PoseStamped last_goal_;
   geometry_msgs::PoseStamped last_pos_;
+  Eigen::Vector3d current_pos_;
+  
 
   std::vector<geometry_msgs::PoseStamped> last_clicked_points;
   std::vector<geometry_msgs::PoseStamped> path_;
@@ -125,6 +128,7 @@ class GlobalPlannerNode {
   double simplify_margin_;
 
   avoidance::AvoidanceNode avoidance_node_;
+  MotionPrimitivePlanner motionprimitive_planner_;
   octomap::OcTree* octomap_world_;
 
 #ifndef DISABLE_SIMULATION
