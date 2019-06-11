@@ -15,7 +15,10 @@ namespace global_planner {
 struct MotionPrimitive {
   double omega;
   double velocity;
+  double climbrate;
   double time_duration = 10.0;
+
+  double cost;
 
   Eigen::Vector3d position;
   double yaw;
@@ -29,10 +32,11 @@ class MotionPrimitivePlanner {
 
   Eigen::Vector3d curr_pos_;
 
-  int num_primitives_;
+  int num_primitives_, num_primitives_x, num_primitives_z;
   double planning_horizon_;
   double default_speed_;
   double max_omega_;
+  double max_climbrate_;
   double time_resolution_;
   double yaw_;
   std::string frame_id_;

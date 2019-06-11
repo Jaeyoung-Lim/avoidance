@@ -6,11 +6,12 @@ MotionPrimitivePlanner::MotionPrimitivePlanner(const ros::NodeHandle& nh) :
   nh_(nh),
   planning_horizon_(1.0),
   default_speed_(5.0),
-  max_omega_(3.0) {
+  max_omega_(3.0),
+  max_climbrate_(5.0) {
 
-  nh_.param<int>("num_primitives", num_primitives_, 7);
-
-  if(num_primitives_ %2 == 0) num_primitives_ = num_primitives_ + 1;
+  nh_.param<int>("num_primitives", num_primitives_x, 3);
+  nh_.param<int>("num_primitives", num_primitives_z, 3);
+  num_primitives_ = num_primitives_z * num_primitives_x;
 
   GeneratePrimitives(curr_pos_);
   for(int i = 0;  i < num_primitives_; i++){
@@ -33,14 +34,23 @@ void MotionPrimitivePlanner::updateFullOctomap(octomap::OcTree* octomap_world) {
 void MotionPrimitivePlanner::GeneratePrimitives(Eigen::Vector3d start_position){
   motion_primitives_.resize(num_primitives_);
 
-  for(size_t i = 0; i < num_primitives_; i++){
-    //Set Current states
-    motion_primitives_[i].position = start_position;
-    //Generate motion primitives from default_speed and omega
-    motion_primitives_[i].velocity = default_speed_;
+  for(size_t j = 0; j < num_primitives_z; j++){
+    for(size_t i = 0; i < num_primitives_x; i++){
+      //Set Current states
+      int index = num_primitives_x * i + j;
+      motion_primitives_[index].position = start_position;
+      //Generate motion primitives from default_speed and omega
+      motion_primitives_[index].velocity = default_speed_;
 
-    if (i == (num_primitives_- 1) / 2) motion_primitives_[i].omega = 0.0;
-    else motion_primitives_[i].omega = max_omega_ * (double(i+1) -  0.5 * double(num_primitives_-1)) / ( double(num_primitives_) );
+      if (i == double(num_primitives_x- 1) / 2) motion_primitives_[index].omega = 0.0;
+      else motion_primitives_[index].omega = max_omega_ * (double(i+1) -  2) / ( double(num_primitives_x) );
+
+      if (j == double(num_primitives_z- 1) / 2) motion_primitives_[index].climbrate = 0.0;
+      else motion_primitives_[index].climbrate = max_climbrate_ * (double(j+1) -  2) / ( double(num_primitives_z) );
+      
+      std::cout << j << " / " << i << "= "<< i + j << std::endl;
+  }
+
   }
 }
 
@@ -54,7 +64,7 @@ void MotionPrimitivePlanner::PublishPrimitives()
     double velocity = motion_primitives_[i].velocity;
     double omega = motion_primitives_[i].omega;
     double theta = yaw_;
-    double vz = 0.0;
+    double vz = motion_primitives_[i].climbrate;
 
     for(double t = 0; t < motion_primitives_[i].time_duration ; t+=time_resolution_){
       geometry_msgs::PoseStamped state;
@@ -78,12 +88,8 @@ void MotionPrimitivePlanner::PublishPrimitives()
       }
       msg.poses.push_back(state);
     }
-    // std::cout << i << " : " << omega << " / ";
     primitivePub_[i].publish(msg);
   }
-
-  // std::cout << std::endl;
-
 }
 
 void MotionPrimitivePlanner::setGlobalPath(std::vector<geometry_msgs::PoseStamped> &path){
@@ -100,8 +106,11 @@ void MotionPrimitivePlanner::setInitialState(Eigen::Vector3d position){
 }
 
 void MotionPrimitivePlanner::GetOptimalPath(){
-  // int num_samples = int(motion_primitives_[0]time_duration / time_resolution_)
   GeneratePrimitives(curr_pos_);
+
+  //Calculate Optimal path
+
+
   PublishPrimitives();
 }
 

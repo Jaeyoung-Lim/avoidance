@@ -6,8 +6,6 @@ Panels:
       Expanded:
         - /Global Options1
         - /Path2
-        - /Path8
-        - /Path9
       Splitter Ratio: 0.5
     Tree Height: 571
   - Class: rviz/Selection
@@ -547,6 +545,52 @@ Visualization Manager:
       Topic: /trajectory_publisher/primitiveset6
       Unreliable: false
       Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 25; 255; 0
+      Enabled: true
+      Head Diameter: 0.300000012
+      Head Length: 0.200000003
+      Length: 0.300000012
+      Line Style: Lines
+      Line Width: 0.0299999993
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Radius: 0.0299999993
+      Shaft Diameter: 0.100000001
+      Shaft Length: 0.100000001
+      Topic: /trajectory_publisher/primitiveset7
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 25; 255; 0
+      Enabled: true
+      Head Diameter: 0.300000012
+      Head Length: 0.200000003
+      Length: 0.300000012
+      Line Style: Lines
+      Line Width: 0.0299999993
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Radius: 0.0299999993
+      Shaft Diameter: 0.100000001
+      Shaft Length: 0.100000001
+      Topic: /trajectory_publisher/primitiveset8
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 89; 120; 76
@@ -585,10 +629,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.644796491
+      Pitch: 0.279796571
       Target Frame: fcu
       Value: ThirdPersonFollower (rviz)
-      Yaw: 2.3460958
+      Yaw: 3.13110161
     Saved:
       - Class: rviz/ThirdPersonFollower
         Distance: 10
