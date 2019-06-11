@@ -19,6 +19,7 @@ MotionPrimitivePlanner::MotionPrimitivePlanner(const ros::NodeHandle& nh) :
   }
   frame_id_ = "world";
   time_resolution_ = 0.1;
+  map_initialized = false;
 }
 
 MotionPrimitivePlanner::~MotionPrimitivePlanner(){
@@ -26,8 +27,10 @@ MotionPrimitivePlanner::~MotionPrimitivePlanner(){
 }
 
 void MotionPrimitivePlanner::updateFullOctomap(octomap::OcTree* octomap_world) {
-  if (octomap_world_) delete octomap_world_;
+  // if (octomap_world_) delete octomap_world_;
   octomap_world_ = octomap_world;
+
+  map_initialized = true;
 
 }
 
@@ -47,11 +50,8 @@ void MotionPrimitivePlanner::GeneratePrimitives(Eigen::Vector3d start_position){
 
       if (j == double(num_primitives_z- 1) / 2) motion_primitives_[index].climbrate = 0.0;
       else motion_primitives_[index].climbrate = max_climbrate_ * (double(j+1) -  2) / ( double(num_primitives_z) );
-      
-      std::cout << j << " / " << i << "= "<< i + j << std::endl;
-  }
-
-  }
+    }
+  }  
 }
 
 void MotionPrimitivePlanner::PublishPrimitives()
@@ -65,6 +65,8 @@ void MotionPrimitivePlanner::PublishPrimitives()
     double omega = motion_primitives_[i].omega;
     double theta = yaw_;
     double vz = motion_primitives_[i].climbrate;
+
+    if(!motion_primitives_[i].valid) continue;
 
     for(double t = 0; t < motion_primitives_[i].time_duration ; t+=time_resolution_){
       geometry_msgs::PoseStamped state;
@@ -108,16 +110,48 @@ void MotionPrimitivePlanner::setInitialState(Eigen::Vector3d position){
 void MotionPrimitivePlanner::GetOptimalPath(){
   GeneratePrimitives(curr_pos_);
 
-  //Calculate Optimal path
-
-
+  FindOptimalPrimitive();
   PublishPrimitives();
+}
+
+void MotionPrimitivePlanner::FindOptimalPrimitive(){
+  for(size_t i = 0; i < num_primitives_; i++){
+    EvaluatePrimitive(motion_primitives_[i]);
+  }
+}
+
+void MotionPrimitivePlanner::EvaluatePrimitive(MotionPrimitive &primitive){
+      
+    double velocity = primitive.velocity;
+    double omega = primitive.omega;
+    double theta = yaw_;
+    double vz = primitive.climbrate;
+
+    std::vector<Eigen::Vector3d> trajectory;
+    for(double t = 0; t < primitive.time_duration ; t+=time_resolution_){
+    Eigen::Vector3d position;
+      
+      if(omega == 0.0){
+        position(0) = curr_pos_(0) + velocity *cos(theta)* time_resolution_* t; 
+        position(1) = curr_pos_(1) + velocity *sin(theta)* time_resolution_* t; 
+        position(2) = curr_pos_(2) + vz * time_resolution_* t;
+
+      }else {
+        position(0) = curr_pos_(0) + velocity / omega * (std::sin(omega * time_resolution_* t + theta) - std::sin(theta));
+        position(1) = curr_pos_(1) + velocity / omega * (std::cos(theta) - std::cos(omega * time_resolution_* t + theta)); 
+        position(2) = curr_pos_(2) + vz * time_resolution_* t; 
+
+      }
+      trajectory.push_back(position);
+    }
+
+    primitive.valid = isTrajectoryCollisionFree(trajectory);
 }
 
 bool MotionPrimitivePlanner::isTrajectoryCollisionFree(
     std::vector<Eigen::Vector3d> trajectory) {
   for (size_t i = 0; i < trajectory.size(); i++) {
-    if (isPositionCollisionFree(trajectory[i])) return false;
+    if (!isPositionCollisionFree(trajectory[i])) return false;
   }
   return true;
 }
@@ -125,12 +159,14 @@ bool MotionPrimitivePlanner::isTrajectoryCollisionFree(
 bool MotionPrimitivePlanner::isPositionCollisionFree(Eigen::Vector3d position) {
   int octree_depth = 16;
   double occprob = 1.0;
-
+  if(!map_initialized) return false;
   octomap::OcTreeNode* node =
       octomap_world_->search(position(0), position(1), position(2), octree_depth);
+
   if(node){
     occprob = node->getOccupancy();
   }
+
   return occprob < 0.5;
 }
 }

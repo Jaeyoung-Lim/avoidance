@@ -18,6 +18,8 @@ struct MotionPrimitive {
   double climbrate;
   double time_duration = 10.0;
 
+  bool valid;
+
   double cost;
 
   Eigen::Vector3d position;
@@ -39,22 +41,26 @@ class MotionPrimitivePlanner {
   double max_climbrate_;
   double time_resolution_;
   double yaw_;
+  bool map_initialized;
   std::string frame_id_;
 
   octomap::OcTree* octomap_world_;
   std::vector<MotionPrimitive> motion_primitives_;
 
-  void updateFullOctomap(octomap::OcTree* octomap_world);
   void GeneratePrimitives(Eigen::Vector3d);
   void PublishPrimitives();
   void setGlobalPath(std::vector<geometry_msgs::PoseStamped> &path);
+  void FindOptimalPrimitive();
+  void EvaluatePrimitive(MotionPrimitive &primitive);
   bool isTrajectoryCollisionFree(std::vector<Eigen::Vector3d> trajectory);
   bool isPositionCollisionFree(Eigen::Vector3d position);
+
 
  public:
   MotionPrimitivePlanner(const ros::NodeHandle& nh);
   ~MotionPrimitivePlanner();
   void GetOptimalPath();
+  void updateFullOctomap(octomap::OcTree* octomap_world);
   void setInitialState(Eigen::Vector3d position);
 
 };
