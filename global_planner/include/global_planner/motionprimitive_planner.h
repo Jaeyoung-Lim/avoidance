@@ -20,7 +20,7 @@ struct MotionPrimitive {
 
   bool valid;
 
-  double cost;
+  double cost = 0.0;
 
   Eigen::Vector3d position;
   double yaw;
@@ -33,8 +33,10 @@ class MotionPrimitivePlanner {
   std::vector<ros::Publisher> primitivePub_;
 
   Eigen::Vector3d curr_pos_;
+  Eigen::Vector3d goal_pos_;
 
   int num_primitives_, num_primitives_x, num_primitives_z;
+  int optimal_primitive_;
   double planning_horizon_;
   double default_speed_;
   double max_omega_;
@@ -52,6 +54,7 @@ class MotionPrimitivePlanner {
   void setGlobalPath(std::vector<geometry_msgs::PoseStamped> &path);
   void FindOptimalPrimitive();
   void EvaluatePrimitive(MotionPrimitive &primitive);
+  double calcGoalCost(std::vector<Eigen::Vector3d> trajectory);
   bool isTrajectoryCollisionFree(std::vector<Eigen::Vector3d> trajectory);
   bool isPositionCollisionFree(Eigen::Vector3d position);
 

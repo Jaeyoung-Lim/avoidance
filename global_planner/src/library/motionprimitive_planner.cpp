@@ -6,7 +6,7 @@ MotionPrimitivePlanner::MotionPrimitivePlanner(const ros::NodeHandle& nh) :
   nh_(nh),
   planning_horizon_(1.0),
   default_speed_(5.0),
-  max_omega_(3.0),
+  max_omega_(5.0),
   max_climbrate_(5.0) {
 
   nh_.param<int>("num_primitives", num_primitives_x, 3);
@@ -27,11 +27,9 @@ MotionPrimitivePlanner::~MotionPrimitivePlanner(){
 }
 
 void MotionPrimitivePlanner::updateFullOctomap(octomap::OcTree* octomap_world) {
-  // if (octomap_world_) delete octomap_world_;
   octomap_world_ = octomap_world;
 
   map_initialized = true;
-
 }
 
 void MotionPrimitivePlanner::GeneratePrimitives(Eigen::Vector3d start_position){
@@ -115,8 +113,15 @@ void MotionPrimitivePlanner::GetOptimalPath(){
 }
 
 void MotionPrimitivePlanner::FindOptimalPrimitive(){
+  int optimal_primitive_;
+  double best_cost = 100;
   for(size_t i = 0; i < num_primitives_; i++){
     EvaluatePrimitive(motion_primitives_[i]);
+
+    if(motion_primitives_[i].cost < best_cost){
+      best_cost = motion_primitives_[i].cost;
+      optimal_primitive_ = i;
+    }
   }
 }
 
@@ -144,8 +149,17 @@ void MotionPrimitivePlanner::EvaluatePrimitive(MotionPrimitive &primitive){
       }
       trajectory.push_back(position);
     }
-
+    
+    //Mark primitive as invalid if obstacle is in collision
     primitive.valid = isTrajectoryCollisionFree(trajectory);
+    //Calculate goal cost
+    primitive.cost = calcGoalCost(trajectory);
+}
+
+double MotionPrimitivePlanner::calcGoalCost(std::vector<Eigen::Vector3d> trajectory){
+  double distance = (trajectory.back() - goal_pos_).norm();
+
+  return distance;
 }
 
 bool MotionPrimitivePlanner::isTrajectoryCollisionFree(
