@@ -104,7 +104,7 @@ class GlobalPlannerNode {
   geometry_msgs::PoseStamped current_goal_;
   geometry_msgs::PoseStamped last_goal_;
   geometry_msgs::PoseStamped last_pos_;
-  Eigen::Vector3d current_pos_;
+  Eigen::Vector3d current_pos_, current_vel_;
   
 
   std::vector<geometry_msgs::PoseStamped> last_clicked_points;
@@ -138,7 +138,6 @@ class GlobalPlannerNode {
   void initializeCameraSubscribers(std::vector<std::string>& camera_topics);
   void receivePath(const nav_msgs::Path& msg);
   void setNewGoal(const GoalCell& goal);
-  void popNextGoal();
   void planPath();
   void setIntermediateGoal();
   bool isCloseToGoal();

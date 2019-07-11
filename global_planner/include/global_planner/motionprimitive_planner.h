@@ -32,7 +32,7 @@ class MotionPrimitivePlanner {
 
   std::vector<ros::Publisher> primitivePub_;
 
-  Eigen::Vector3d curr_pos_;
+  Eigen::Vector3d curr_pos_, curr_vel_;
   Eigen::Vector3d goal_pos_;
 
   int num_primitives_, num_primitives_x, num_primitives_z;
@@ -64,7 +64,7 @@ class MotionPrimitivePlanner {
   ~MotionPrimitivePlanner();
   void GetOptimalPath();
   void updateFullOctomap(octomap::OcTree* octomap_world);
-  void setInitialState(Eigen::Vector3d position);
+  void setInitialState(Eigen::Vector3d position, Eigen::Vector3d velocity);
 
 };
 }

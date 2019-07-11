@@ -61,10 +61,7 @@ void MotionPrimitivePlanner::PublishPrimitives()
     msg.header.frame_id = frame_id_;
     double velocity = motion_primitives_[i].velocity;
     double omega = motion_primitives_[i].omega;
-    double theta = yaw_;
     double vz = motion_primitives_[i].climbrate;
-
-    if(!motion_primitives_[i].valid) continue;
 
     for(double t = 0; t < motion_primitives_[i].time_duration ; t+=time_resolution_){
       geometry_msgs::PoseStamped state;
@@ -76,17 +73,18 @@ void MotionPrimitivePlanner::PublishPrimitives()
       state.pose.orientation.w = 0.0;
       state.pose.orientation.w = 0.0;
       if(omega == 0.0){
-        state.pose.position.x = curr_pos_(0) + velocity *cos(theta)* time_resolution_* t; 
-        state.pose.position.y = curr_pos_(1) + velocity *sin(theta)* time_resolution_* t; 
+        state.pose.position.x = curr_pos_(0) + velocity *cos(yaw_)* time_resolution_* t; 
+        state.pose.position.y = curr_pos_(1) + velocity *sin(yaw_)* time_resolution_* t; 
         state.pose.position.z = curr_pos_(2) + vz * time_resolution_* t;
 
       }else {
-        state.pose.position.x = curr_pos_(0) + velocity / omega * (std::sin(omega * time_resolution_* t + theta) - std::sin(theta));
-        state.pose.position.y = curr_pos_(1) + velocity / omega * (std::cos(theta) - std::cos(omega * time_resolution_* t + theta)); 
+        state.pose.position.x = curr_pos_(0) + velocity / omega * (std::sin(omega * time_resolution_* t + yaw_) - std::sin(yaw_));
+        state.pose.position.y = curr_pos_(1) + velocity / omega * (std::cos(yaw_) - std::cos(omega * time_resolution_* t + yaw_)); 
         state.pose.position.z = curr_pos_(2) + vz * time_resolution_* t; 
 
       }
       msg.poses.push_back(state);
+      if(!motion_primitives_[i].valid) break;
     }
     primitivePub_[i].publish(msg);
   }
@@ -99,10 +97,10 @@ void MotionPrimitivePlanner::setGlobalPath(std::vector<geometry_msgs::PoseStampe
   // }
 }
 
-void MotionPrimitivePlanner::setInitialState(Eigen::Vector3d position){
+void MotionPrimitivePlanner::setInitialState(Eigen::Vector3d position, Eigen::Vector3d velocity){
   curr_pos_ = position;
-  
-
+  curr_vel_ = velocity;
+  yaw_ = std::atan2(curr_vel_(1), curr_vel_(0));
 }
 
 void MotionPrimitivePlanner::GetOptimalPath(){

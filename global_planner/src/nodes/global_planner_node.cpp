@@ -25,7 +25,7 @@ GlobalPlannerNode::GlobalPlannerNode(const ros::NodeHandle& nh,
   // Subscribers
   octomap_full_sub_ = nh_.subscribe("/octomap_full", 1, &GlobalPlannerNode::octomapFullCallback, this);
   ground_truth_sub_ = nh_.subscribe("/mavros/local_position/pose", 1, &GlobalPlannerNode::positionCallback, this);
-  velocity_sub_ = nh_.subscribe("/mavros/local_position/velocity", 1, &GlobalPlannerNode::velocityCallback, this);
+  velocity_sub_ = nh_.subscribe("/mavros/local_position/velocity_local", 1, &GlobalPlannerNode::velocityCallback, this);
   clicked_point_sub_ = nh_.subscribe("/clicked_point", 1, &GlobalPlannerNode::clickedPointCallback, this);
   move_base_simple_sub_ = nh_.subscribe("/move_base_simple/goal", 1, &GlobalPlannerNode::moveBaseSimpleCallback, this);
   fcu_input_sub_ = nh_.subscribe("/mavros/trajectory/desired", 1, &GlobalPlannerNode::fcuInputGoalCallback, this);
@@ -104,22 +104,23 @@ void GlobalPlannerNode::setNewGoal(const GoalCell& goal) {
   publishGoal(goal);
 }
 
-// Sets the next waypoint to be the current goal
-void GlobalPlannerNode::popNextGoal() {
-  if (!waypoints_.empty()) {
-    // Set the first goal in waypoints_ as the new goal
-    GoalCell new_goal = waypoints_.front();
-    waypoints_.erase(waypoints_.begin());
-    setNewGoal(new_goal);
-  } else if (global_planner_.goal_is_blocked_) {
-    // Goal is blocked but there is no other goal in waypoints_, just stop
-    ROS_INFO("  STOP  ");
-    global_planner_.stop();
-  }
-}
-
 // Plans a new path and publishes it
 void GlobalPlannerNode::planPath() {
+
+  bool is_in_goal = global_planner_.goal_pos_.withinPositionRadius(global_planner_.curr_pos_);
+  if (is_in_goal || global_planner_.goal_is_blocked_) {
+    if (!waypoints_.empty()) {
+      // Set the first goal in waypoints_ as the new goal
+      GoalCell new_goal = waypoints_.front();
+      waypoints_.erase(waypoints_.begin());
+      setNewGoal(new_goal);
+    } else if (global_planner_.goal_is_blocked_) {
+      // Goal is blocked but there is no other goal in waypoints_, just stop
+      ROS_INFO("  STOP  ");
+      global_planner_.stop();
+    }
+  }
+
   std::clock_t start_time = std::clock();
   if (global_planner_.octree_) {
     ROS_INFO("OctoMap memory usage: %2.3f MB", global_planner_.octree_->memoryUsage() / 1000000.0);
@@ -135,7 +136,16 @@ void GlobalPlannerNode::planPath() {
     // The path is not good enough, set an intermediate goal on the path
     setIntermediateGoal();
   }
+
   printf("Total time: %2.2f ms \n", (std::clock() - start_time) / (double)(CLOCKS_PER_SEC / 1000));
+  // Print and publish info
+  if (is_in_goal && !waypoints_.empty()) {
+    ROS_INFO("Reached current goal %s, %d goals left\n\n", global_planner_.goal_pos_.asString().c_str(),
+             (int)waypoints_.size());
+    ROS_INFO("Actual travel distance: %2.2f \t Actual energy usage: %2.2f", pathLength(actual_path_),
+             pathEnergy(actual_path_, global_planner_.up_cost_));
+  }
+
 }
 
 // Sets a temporary goal on the path to the current goal
@@ -191,6 +201,10 @@ void GlobalPlannerNode::dynamicReconfigureCallback(global_planner::GlobalPlanner
 void GlobalPlannerNode::velocityCallback(const geometry_msgs::TwistStamped& msg) {
   auto transformed_msg = transformTwistMsg(listener_, "world", "local_origin", msg);  // 90 deg fix
   global_planner_.curr_vel_ = transformed_msg.twist.linear;
+  
+  current_vel_(0) = transformed_msg.twist.linear.x;
+  current_vel_(1) = transformed_msg.twist.linear.y;
+  current_vel_(2) = transformed_msg.twist.linear.z;
 }
 
 // Sets the current position and checks if the current goal has been reached
@@ -312,7 +326,9 @@ void GlobalPlannerNode::setCurrentPath(const std::vector<geometry_msgs::PoseStam
 }
 
 void GlobalPlannerNode::cmdLoopCallback(const ros::TimerEvent& event) {
+  std::lock_guard<std::mutex> lock(mutex_);
   hover_ = false;
+
 
   // Check if all information was received
   ros::Time now = ros::Time::now();
@@ -323,7 +339,8 @@ void GlobalPlannerNode::cmdLoopCallback(const ros::TimerEvent& event) {
 
   avoidance_node_.checkFailsafe(since_last_cloud, since_start, hover_);
   
-  motionprimitive_planner_.setInitialState(current_pos_);
+  motionprimitive_planner_.setInitialState(current_pos_, current_vel_);
+
   motionprimitive_planner_.GetOptimalPath();
 
   publishSetpoint();
@@ -331,21 +348,11 @@ void GlobalPlannerNode::cmdLoopCallback(const ros::TimerEvent& event) {
 
 void GlobalPlannerNode::plannerLoopCallback(const ros::TimerEvent& event) {
   std::lock_guard<std::mutex> lock(mutex_);
-  bool is_in_goal = global_planner_.goal_pos_.withinPositionRadius(global_planner_.curr_pos_);
-  if (is_in_goal || global_planner_.goal_is_blocked_) {
-    popNextGoal();
-  }
 
+  //Plan global path to goal
   planPath();
   // motionprimitive_planner_.SetCurrentGoal(path_);
 
-  // Print and publish info
-  if (is_in_goal && !waypoints_.empty()) {
-    ROS_INFO("Reached current goal %s, %d goals left\n\n", global_planner_.goal_pos_.asString().c_str(),
-             (int)waypoints_.size());
-    ROS_INFO("Actual travel distance: %2.2f \t Actual energy usage: %2.2f", pathLength(actual_path_),
-             pathEnergy(actual_path_, global_planner_.up_cost_));
-  }
 
   publishPath();
 }
