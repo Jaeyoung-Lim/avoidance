@@ -9,10 +9,6 @@ GlobalPlannerNode::GlobalPlannerNode(const ros::NodeHandle& nh, const ros::NodeH
   f = boost::bind(&GlobalPlannerNode::dynamicReconfigureCallback, this, _1, _2);
   server_.setCallback(f);
 
-#ifndef DISABLE_SIMULATION
-  world_visualizer_.reset(new avoidance::WorldVisualizer(nh_));
-#endif
-
   // Read Ros parameters
   readParams();
 

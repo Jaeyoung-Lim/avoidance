@@ -70,6 +70,12 @@ target_link_libraries(avoidance
   ${catkin_LIBRARIES}
   ${YAML_CPP_LIBRARIES})
 
+add_executable(rviz_world_loader_node src/rviz_world_loader_node.cpp)
+target_link_libraries(rviz_world_loader_node
+  avoidance
+  ${catkin_LIBRARIES}
+  ${YAML_CPP_LIBRARIES})
+
 #############
 ## Install ##
 #############
