@@ -158,6 +158,8 @@ add_library(node
 )
 add_library(global_planner
   src/library/global_planner.cpp
+  src/nodes/waypoint_generator.cpp
+  src/nodes/waypoint_generator_node.cpp
 )
 
 ## Add cmake target dependencies of the library
