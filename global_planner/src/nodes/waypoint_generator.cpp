@@ -31,12 +31,13 @@ PlannerState WaypointGenerator::chooseNextState(PlannerState currentState, usm::
 
   // clang-format off
   USM_TABLE(
-      currentState, PlannerState::LOITER,
+      currentState, PlannerState::DIRECT,
       USM_STATE(transition, PlannerState::NAVIGATE, USM_MAP(usm::Transition::NEXT1, PlannerState::DIRECT);
          USM_MAP(usm::Transition::NEXT2, PlannerState::LOITER));
       USM_STATE(transition, PlannerState::LOITER, USM_MAP(usm::Transition::NEXT1, PlannerState::DIRECT);
          USM_MAP(usm::Transition::NEXT2, PlannerState::NAVIGATE));
-      USM_STATE(transition, PlannerState::DIRECT, USM_MAP(usm::Transition::NEXT1, PlannerState::NAVIGATE));
+      USM_STATE(transition, PlannerState::DIRECT, USM_MAP(usm::Transition::NEXT1, PlannerState::NAVIGATE);
+         USM_MAP(usm::Transition::NEXT2, PlannerState::LOITER));
       // clang-format on
   );
 }
@@ -66,20 +67,20 @@ usm::Transition WaypointGenerator::runCurrentState() {
 }
 
 usm::Transition WaypointGenerator::runLoiter() {
-  // if (state_changed_ || hover_position_.array().hasNaN()) {
-  //   hover_position_ = position_;
-  // }
-  // output_.goto_position = hover_position_;
-  // ROS_DEBUG("[WG] Hover at: [%f, %f, %f].", output_.goto_position.x(), output_.goto_position.y(),
-  //           output_.goto_position.z());
-  getPathMsg();
-  bool loiter_ = false;
+  // Loiter in position when a collision free path cannot be found
 
-  if (loiter_) {
-    return usm::Transition::REPEAT;
-  } else {
-    return usm::Transition::NEXT1;
+  //TODO: Loiter position should be the current position
+  output_.goto_position << 0.0, 0.0, 3.5;
+
+  // Escape lotier when planner comes up with a path
+  planner_path_exists = bool(planner_info_.path_node_positions.size() > 0);
+
+  getPathMsg();
+  if (planner_path_exists) {
+    if(path_in_collision_)  return usm::Transition::NEXT2; //NAVIGATE
+    else return usm::Transition::NEXT1; //DIRECT
   }
+  else return usm::Transition::REPEAT;
 }
 
 usm::Transition WaypointGenerator::runDirect() {
@@ -91,35 +92,33 @@ usm::Transition WaypointGenerator::runDirect() {
             output_.goto_position.y(), output_.goto_position.z());
 
   getPathMsg();
-  bool collision_in_path = false;
-  
-  //TODO: Implement collision checker, start the navigate state if a collision is found
-  if (collision_in_path) {
-    // Start navigating with path planner when there is a collision
-    return usm::Transition::NEXT1;  // NAVIGATE
+
+  planner_path_exists = bool(planner_info_.path_node_positions.size() > 0);
+
+  if (path_in_collision_) {
+    if (planner_path_exists) {
+      // Start navigating with path planner when there is a collision
+      return usm::Transition::NEXT1;  // NAVIGATE
+    } else {
+      return usm::Transition::NEXT2;  // Loiter
+    } 
   } else {
     return usm::Transition::REPEAT;
   }
 }
 
 usm::Transition WaypointGenerator::runNavigate() {
-  //   Eigen::Vector3f setpoint = position_;
-//   const bool tree_available = getSetpointFromPath(planner_info_.path_node_positions, planner_info_.last_path_time,
-//                                                   planner_info_.cruise_velocity, setpoint);
-//   output_.goto_position = position_ + (setpoint - position_).normalized();
-//   getPathMsg();
-
-//   if (isAltitudeChange()) {
-//     return usm::Transition::NEXT1;  // ALTITUDE_CHANGE
-//   } else if (tree_available) {
-//     ROS_DEBUG("[WG] Using calculated tree\n");
-//     return usm::Transition::REPEAT;
-//   } else if (loiter_) {
-//     return usm::Transition::NEXT3;  // LOITER
-//   } else {
-//     return usm::Transition::NEXT2;  // DIRECT
-//   }
-  return usm::Transition::REPEAT;
+  Eigen::Vector3f setpoint = position_;
+  const bool tree_available = getSetpointFromPath(planner_info_.path_node_positions, planner_info_.last_path_time,
+                                                  planner_info_.cruise_velocity, setpoint);
+  output_.goto_position = position_ + (setpoint - position_).normalized();
+  getPathMsg();
+  planner_path_exists = bool(planner_info_.path_node_positions.size() > 2);
+  if (!planner_path_exists){
+    if(path_in_collision_)  return usm::Transition::NEXT2;  // Loiter
+    else return usm::Transition::NEXT1;  // Direct
+  }
+  else return usm::Transition::REPEAT;
 }
 
 void WaypointGenerator::calculateWaypoint() {
@@ -143,7 +142,7 @@ void WaypointGenerator::updateState(const Eigen::Vector3f& act_pose, const Eigen
                                     const Eigen::Vector3f& goal, const Eigen::Vector3f& prev_goal,
                                     const Eigen::Vector3f& vel, bool stay, bool is_airborne,
                                     const avoidance::NavigationState& nav_state, const bool is_land_waypoint,
-                                    const bool is_takeoff_waypoint, const Eigen::Vector3f& desired_vel) {
+                                    const bool is_takeoff_waypoint, const Eigen::Vector3f& desired_vel, bool path_in_collision) {
   position_ = act_pose;
   velocity_ = vel;
   goal_ = goal;
@@ -155,6 +154,7 @@ void WaypointGenerator::updateState(const Eigen::Vector3f& act_pose, const Eigen
   is_takeoff_waypoint_ = is_takeoff_waypoint;
   desired_vel_ = desired_vel;
   loiter_ = stay;
+  path_in_collision_ = path_in_collision;
 
   is_airborne_ = is_airborne;
 
@@ -224,5 +224,37 @@ waypointResult WaypointGenerator::getWaypoints() {
 }
 
 void WaypointGenerator::setPlannerInfo(const avoidanceOutput& input) { planner_info_ = input; }
+
+bool WaypointGenerator::getSetpointFromPath(const std::vector<Eigen::Vector3f>& path, const ros::Time& path_generation_time,
+                         float velocity, Eigen::Vector3f& setpoint) {
+  int i = path.size();
+  std::cout << "Path size: " << i << std::endl;
+  // path contains nothing meaningful
+  if (i < 2) {
+    return false;
+  }
+
+  // path only has one segment: return end of that segment as setpoint
+  if (i == 2) {
+    setpoint = path[0];
+    return true;
+  }
+
+  // step through the path until the point where we should be if we had traveled perfectly with velocity along it
+  Eigen::Vector3f path_segment = path[i - 3] - path[i - 2];
+  float distance_left = (ros::Time::now() - path_generation_time).toSec() * velocity;
+  
+  if(path_segment.norm() > 0) setpoint = path[i - 2] + (distance_left / path_segment.norm()) * path_segment;
+  else  setpoint = path[i - 2];
+
+  for (i = path.size() - 3; i > 0 && distance_left > path_segment.norm(); --i) {
+    distance_left -= path_segment.norm();
+    path_segment = path[i - 1] - path[i];
+    setpoint = path[i] + (distance_left / path_segment.norm()) * path_segment;
+  }
+
+  // If we excited because we're past the last node of the path, the path is no longer valid!
+  return distance_left < path_segment.norm();
+}
 
 }

@@ -541,6 +541,7 @@ void GlobalPlanner::setRobotRadius(double radius) { robot_radius_ = radius; }
 
 avoidanceOutput GlobalPlanner::getAvoidanceOutput() {
   avoidanceOutput out;
+  out.last_path_time = ros::Time::now();
   out.cruise_velocity = 5.0;
   out.path_node_positions = getPath();
   return out;
@@ -573,5 +574,7 @@ bool GlobalPlanner::checkCollision(Eigen::Vector3f state){
   }
   return collision;
 }
+
+bool GlobalPlanner::isOctomapExists(){  return bool(octree_); }
 
 }  // namespace global_planner

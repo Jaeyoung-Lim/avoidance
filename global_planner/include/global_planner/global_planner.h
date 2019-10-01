@@ -145,6 +145,7 @@ class GlobalPlanner {
   void stop();
   void setRobotRadius(double radius);
   avoidanceOutput getAvoidanceOutput();
+  bool isOctomapExists();
 
  private:
   double robot_radius_;

@@ -66,7 +66,6 @@ GlobalPlannerNode::GlobalPlannerNode(const ros::NodeHandle& nh, const ros::NodeH
   current_goal_.pose.position = avoidance::toPoint(start_pos_);
   current_goal_.pose.orientation = tf::createQuaternionMsgFromYaw(start_yaw_);
   last_goal_ = current_goal_;
-  goal_position_ = start_pos_;
 
   speed_ = 5.0;
 
@@ -333,12 +332,12 @@ void GlobalPlannerNode::cmdLoopCallback(const ros::TimerEvent& event) {
 
   avoidance_node_.checkFailsafe(since_last_cloud, since_start, hover_);
   direct_path_is_collision = global_planner_.checkCollisiontoGoal(current_position_, goal_position_);
-  
+
   //TODO: Switch this to waypoint generator
   wp_generator_->updateState(current_position_, current_attitude_,
                              goal_position_, prev_goal_position_,
                              current_velocity_, hover_, is_airborne, nav_state_, is_land_waypoint_,
-                             is_takeoff_waypoint_, desired_velocity_);
+                             is_takeoff_waypoint_, desired_velocity_, direct_path_is_collision);
 
   publishSetpoint();
 }
@@ -349,10 +348,10 @@ void GlobalPlannerNode::plannerLoopCallback(const ros::TimerEvent& event) {
   if (is_in_goal || global_planner_.goal_is_blocked_) {
     popNextGoal();
   }
-
-  planPath();
-  wp_generator_->setPlannerInfo(global_planner_.getAvoidanceOutput());
-  
+  if(global_planner_.isOctomapExists()){
+    planPath();
+    wp_generator_->setPlannerInfo(global_planner_.getAvoidanceOutput());
+  }
   // Print and publish info
   if (is_in_goal && !waypoints_.empty()) {
     ROS_INFO("Reached current goal %s, %d goals left\n\n", global_planner_.goal_pos_.asString().c_str(),

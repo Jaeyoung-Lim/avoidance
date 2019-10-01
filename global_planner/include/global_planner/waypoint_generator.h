@@ -52,6 +52,7 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
   bool reach_altitude_offboard_{false};
   bool auto_land_{false};
   bool loiter_{false};
+  bool path_in_collision_{false};
   float setpoint_yaw_rad_ = 0.0f;
   float setpoint_yaw_velocity_ = 0.0f;
   float heading_at_goal_rad_ = NAN;
@@ -66,6 +67,7 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
 //   // state
   bool trigger_reset_ = false;
   bool state_changed_ = false;
+  bool planner_path_exists = false;
   PlannerState prev_planner_state_ = PlannerState::DIRECT;
   usm::Transition runLoiter();
   usm::Transition runDirect();
@@ -144,7 +146,7 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
   void updateState(const Eigen::Vector3f& act_pose, const Eigen::Quaternionf& q, const Eigen::Vector3f& goal,
                    const Eigen::Vector3f& prev_goal, const Eigen::Vector3f& vel, bool stay, bool is_airborne,
                    const avoidance::NavigationState& nav_state, const bool is_land_waypoint, const bool is_takeoff_waypoint,
-                   const Eigen::Vector3f& desired_vel);
+                   const Eigen::Vector3f& desired_vel, const bool path_in_collision);
 
 //   /**
 //   * @brief     getter method for the system time
@@ -161,6 +163,10 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
 //   **/
 //   void getOfftrackPointsForVisualization(Eigen::Vector3f& closest_pt, Eigen::Vector3f& deg60_pt);
 
+
+  bool getSetpointFromPath(const std::vector<Eigen::Vector3f>& path, const ros::Time& path_generation_time,
+                         float velocity, Eigen::Vector3f& setpoint);
+  
   WaypointGenerator();
   virtual ~WaypointGenerator() = default;
 };
