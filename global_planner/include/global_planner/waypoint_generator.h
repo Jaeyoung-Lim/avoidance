@@ -62,8 +62,6 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
 
   avoidance::NavigationState nav_state_ = avoidance::NavigationState::none;
 
-//   ros::Time velocity_time_;
-
 //   // state
   bool trigger_reset_ = false;
   bool state_changed_ = false;
@@ -88,11 +86,6 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
   *            waypoint_choice
   **/
   void calculateWaypoint();
-
-//   /**
-//   * @brief     transform a position waypoint into a velocity waypoint
-//   **/
-//   void transformPositionToVelocityWaypoint();
 
   /**
   * @brief     change speed depending on the presence of obstacles, proximity to
@@ -122,12 +115,6 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
   * @param[in] input, local_planner algorithm result
   **/
   void setPlannerInfo(const avoidanceOutput& input);
-  // /**
-  // * @brief set horizontal and vertical Field of View based on camera matrix
-  // * @param[in] index of the camera
-  // * @param[in] FOV structures defining the FOV of the specific camera
-  // **/
-  // void setFOV(int i, const FOV& fov);
 
   /**
   * @brief update with FCU vehice states
@@ -147,22 +134,6 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
                    const Eigen::Vector3f& prev_goal, const Eigen::Vector3f& vel, bool stay, bool is_airborne,
                    const avoidance::NavigationState& nav_state, const bool is_land_waypoint, const bool is_takeoff_waypoint,
                    const Eigen::Vector3f& desired_vel, const bool path_in_collision);
-
-//   /**
-//   * @brief     getter method for the system time
-//   * @returns   current ROS time
-//   **/
-//   virtual ros::Time getSystemTime();
-
-//   /**
-//   * @brief     getter method to visualize offtrack state
-//   * @param[in] closest_pt, vehicle position projection on the line previous to
-//   * current goal
-//   * @param[in] deg60_pt, 60 degrees angle entry point to line previous to
-//   * current goal from current vehicle postion
-//   **/
-//   void getOfftrackPointsForVisualization(Eigen::Vector3f& closest_pt, Eigen::Vector3f& deg60_pt);
-
 
   bool getSetpointFromPath(const std::vector<Eigen::Vector3f>& path, const ros::Time& path_generation_time,
                          float velocity, Eigen::Vector3f& setpoint);

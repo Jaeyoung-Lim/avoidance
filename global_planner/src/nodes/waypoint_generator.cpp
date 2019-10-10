@@ -6,7 +6,6 @@
 namespace global_planner {
 
 WaypointGenerator::WaypointGenerator() : usm::StateMachine<PlannerState>(PlannerState::LOITER) {}
-// ros::Time WaypointGenerator::getSystemTime() { return ros::Time::now(); }
 
 using global_planner::PlannerState;
 std::string toString(PlannerState state) {
@@ -47,7 +46,6 @@ usm::Transition WaypointGenerator::runCurrentState() {
     trigger_reset_ = false;
     return usm::Transition::ERROR;
   }
-  std::cout << toString(getState()) << std::endl;
   usm::Transition t;
   switch (getState()) {
     case PlannerState::NAVIGATE:
@@ -70,7 +68,7 @@ usm::Transition WaypointGenerator::runLoiter() {
   // Loiter in position when a collision free path cannot be found
 
   //TODO: Loiter position should be the current position
-  output_.goto_position << 0.0, 0.0, 3.5;
+  output_.goto_position = position_;
 
   // Escape lotier when planner comes up with a path
   planner_path_exists = bool(planner_info_.path_node_positions.size() > 0);
@@ -86,7 +84,6 @@ usm::Transition WaypointGenerator::runLoiter() {
 usm::Transition WaypointGenerator::runDirect() {
   Eigen::Vector3f dir = (goal_ - position_).normalized();
   output_.goto_position = position_ + dir;
-  std::cout << "[RunDirect] position: "<< position_.transpose() << " goal: " << goal_.transpose() << " dir: " << dir.transpose() <<std::endl;
 
   ROS_INFO("[WG] Going straight to selected waypoint: [%f, %f, %f].", output_.goto_position.x(),
             output_.goto_position.y(), output_.goto_position.z());
@@ -167,13 +164,6 @@ void WaypointGenerator::updateState(const Eigen::Vector3f& act_pose, const Eigen
   }
 }
 
-// void WaypointGenerator::transformPositionToVelocityWaypoint() {
-//   output_.linear_velocity_wp = output_.position_wp - position_;
-//   output_.angular_velocity_wp.x() = 0.0f;
-//   output_.angular_velocity_wp.y() = 0.0f;
-//   output_.angular_velocity_wp.z() = getAngularVelocity(setpoint_yaw_rad_, curr_yaw_rad_);
-// }
-
 void WaypointGenerator::adaptSpeed() {
   speed_ = planner_info_.cruise_velocity;
 
@@ -212,8 +202,8 @@ void WaypointGenerator::getPathMsg() {
     // in auto_land the z is only velocity controlled. Therefore we don't run the smoothing.
     adaptSpeed();
   }
-
-  output_.position_wp = output_.adapted_goto_position;
+  output_.position_wp = output_.goto_position;
+  // output_.position_wp = output_.adapted_goto_position;
   output_.angular_velocity_wp = Eigen::Vector3f::Zero();
   avoidance::createPoseMsg(output_.position_wp, output_.orientation_wp, output_.adapted_goto_position, setpoint_yaw_rad_);
 }
@@ -227,34 +217,33 @@ void WaypointGenerator::setPlannerInfo(const avoidanceOutput& input) { planner_i
 
 bool WaypointGenerator::getSetpointFromPath(const std::vector<Eigen::Vector3f>& path, const ros::Time& path_generation_time,
                          float velocity, Eigen::Vector3f& setpoint) {
-  int i = path.size();
-  std::cout << "Path size: " << i << std::endl;
+  int num_pathsegments = path.size();
+  
   // path contains nothing meaningful
-  if (i < 2) {
+  if (num_pathsegments < 2) {
     return false;
   }
 
   // path only has one segment: return end of that segment as setpoint
-  if (i == 2) {
+  if (num_pathsegments == 2) {
     setpoint = path[0];
     return true;
   }
 
   // step through the path until the point where we should be if we had traveled perfectly with velocity along it
-  Eigen::Vector3f path_segment = path[i - 3] - path[i - 2];
   float distance_left = (ros::Time::now() - path_generation_time).toSec() * velocity;
   
-  if(path_segment.norm() > 0) setpoint = path[i - 2] + (distance_left / path_segment.norm()) * path_segment;
-  else  setpoint = path[i - 2];
+  for (int i = 1; i < num_pathsegments; i++) {
+    Eigen::Vector3f path_segment = path[i] - path[i-1];
 
-  for (i = path.size() - 3; i > 0 && distance_left > path_segment.norm(); --i) {
-    distance_left -= path_segment.norm();
-    path_segment = path[i - 1] - path[i];
-    setpoint = path[i] + (distance_left / path_segment.norm()) * path_segment;
+    if(distance_left > path_segment.norm()){
+      distance_left -= path_segment.norm();
+    } else {
+      setpoint =  (distance_left / path_segment.norm()) * path_segment + path[i-1];
+      return true;
+    }
   }
-
-  // If we excited because we're past the last node of the path, the path is no longer valid!
-  return distance_left < path_segment.norm();
+  return false;
 }
 
 }
