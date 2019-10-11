@@ -32,6 +32,7 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
   waypointResult output_;
 
   Eigen::Vector3f position_ = Eigen::Vector3f(NAN, NAN, NAN);
+  Eigen::Vector3f loiter_position_ = Eigen::Vector3f(0.0, 0.0, 3.5);
   Eigen::Vector3f velocity_ = Eigen::Vector3f(NAN, NAN, NAN);
   Eigen::Vector3f goal_ = Eigen::Vector3f(NAN, NAN, NAN);
   Eigen::Vector3f prev_goal_ = Eigen::Vector3f(NAN, NAN, NAN);

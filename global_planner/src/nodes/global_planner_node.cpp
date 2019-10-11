@@ -117,10 +117,6 @@ void GlobalPlannerNode::popNextGoal() {
     GoalCell new_goal = waypoints_.front();
     waypoints_.erase(waypoints_.begin());
     setNewGoal(new_goal);
-  } else if (global_planner_.goal_is_blocked_) {
-    // Goal is blocked but there is no other goal in waypoints_, just stop
-    ROS_INFO("  STOP  ");
-    global_planner_.stop();
   }
 }
 

@@ -66,9 +66,7 @@ usm::Transition WaypointGenerator::runCurrentState() {
 
 usm::Transition WaypointGenerator::runLoiter() {
   // Loiter in position when a collision free path cannot be found
-
-  //TODO: Loiter position should be the current position
-  output_.goto_position = position_;
+  output_.goto_position = loiter_position_;
 
   // Escape lotier when planner comes up with a path
   planner_path_exists = bool(planner_info_.path_node_positions.size() > 0);
@@ -91,7 +89,8 @@ usm::Transition WaypointGenerator::runDirect() {
   getPathMsg();
 
   planner_path_exists = bool(planner_info_.path_node_positions.size() > 0);
-
+  //Update Loiter postiion
+  loiter_position_ = position_;
   if (path_in_collision_) {
     if (planner_path_exists) {
       // Start navigating with path planner when there is a collision
@@ -111,6 +110,7 @@ usm::Transition WaypointGenerator::runNavigate() {
   output_.goto_position = position_ + (setpoint - position_).normalized();
   getPathMsg();
   planner_path_exists = bool(planner_info_.path_node_positions.size() > 2);
+  loiter_position_ = position_;
   if (!planner_path_exists){
     if(path_in_collision_)  return usm::Transition::NEXT2;  // Loiter
     else return usm::Transition::NEXT1;  // Direct
