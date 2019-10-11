@@ -1,7 +1,7 @@
 #include <ros/param.h>
 
-#include "global_planner/waypoint_generator.h"
 #include "avoidance/common.h"
+#include "global_planner/waypoint_generator.h"
 
 namespace global_planner {
 
@@ -37,8 +37,8 @@ PlannerState WaypointGenerator::chooseNextState(PlannerState currentState, usm::
          USM_MAP(usm::Transition::NEXT2, PlannerState::NAVIGATE));
       USM_STATE(transition, PlannerState::DIRECT, USM_MAP(usm::Transition::NEXT1, PlannerState::NAVIGATE);
          USM_MAP(usm::Transition::NEXT2, PlannerState::LOITER));
-      // clang-format on
-  );
+            // clang-format on
+            );
 }
 
 usm::Transition WaypointGenerator::runCurrentState() {
@@ -73,10 +73,12 @@ usm::Transition WaypointGenerator::runLoiter() {
 
   getPathMsg();
   if (planner_path_exists) {
-    if(path_in_collision_)  return usm::Transition::NEXT2; //NAVIGATE
-    else return usm::Transition::NEXT1; //DIRECT
-  }
-  else return usm::Transition::REPEAT;
+    if (path_in_collision_)
+      return usm::Transition::NEXT2;  // NAVIGATE
+    else
+      return usm::Transition::NEXT1;  // DIRECT
+  } else
+    return usm::Transition::REPEAT;
 }
 
 usm::Transition WaypointGenerator::runDirect() {
@@ -84,12 +86,12 @@ usm::Transition WaypointGenerator::runDirect() {
   output_.goto_position = position_ + dir;
 
   ROS_INFO("[WG] Going straight to selected waypoint: [%f, %f, %f].", output_.goto_position.x(),
-            output_.goto_position.y(), output_.goto_position.z());
+           output_.goto_position.y(), output_.goto_position.z());
 
   getPathMsg();
 
   planner_path_exists = bool(planner_info_.path_node_positions.size() > 0);
-  //Update Loiter postiion
+  // Update Loiter postiion
   loiter_position_ = position_;
   if (path_in_collision_) {
     if (planner_path_exists) {
@@ -97,7 +99,7 @@ usm::Transition WaypointGenerator::runDirect() {
       return usm::Transition::NEXT1;  // NAVIGATE
     } else {
       return usm::Transition::NEXT2;  // Loiter
-    } 
+    }
   } else {
     return usm::Transition::REPEAT;
   }
@@ -111,11 +113,13 @@ usm::Transition WaypointGenerator::runNavigate() {
   getPathMsg();
   planner_path_exists = bool(planner_info_.path_node_positions.size() > 2);
   loiter_position_ = position_;
-  if (!planner_path_exists){
-    if(path_in_collision_)  return usm::Transition::NEXT2;  // Loiter
-    else return usm::Transition::NEXT1;  // Direct
-  }
-  else return usm::Transition::REPEAT;
+  if (!planner_path_exists) {
+    if (path_in_collision_)
+      return usm::Transition::NEXT2;  // Loiter
+    else
+      return usm::Transition::NEXT1;  // Direct
+  } else
+    return usm::Transition::REPEAT;
 }
 
 void WaypointGenerator::calculateWaypoint() {
@@ -139,7 +143,8 @@ void WaypointGenerator::updateState(const Eigen::Vector3f& act_pose, const Eigen
                                     const Eigen::Vector3f& goal, const Eigen::Vector3f& prev_goal,
                                     const Eigen::Vector3f& vel, bool stay, bool is_airborne,
                                     const avoidance::NavigationState& nav_state, const bool is_land_waypoint,
-                                    const bool is_takeoff_waypoint, const Eigen::Vector3f& desired_vel, bool path_in_collision) {
+                                    const bool is_takeoff_waypoint, const Eigen::Vector3f& desired_vel,
+                                    bool path_in_collision) {
   position_ = act_pose;
   velocity_ = vel;
   goal_ = goal;
@@ -157,7 +162,7 @@ void WaypointGenerator::updateState(const Eigen::Vector3f& act_pose, const Eigen
 
   // Initialize the smoothing point to current location, if it is undefined or
   // the  vehicle is not flying autonomously yet
-  if (!is_airborne_ ) {
+  if (!is_airborne_) {
     setpoint_yaw_rad_ = curr_yaw_rad_;
     setpoint_yaw_velocity_ = 0.f;
     reach_altitude_offboard_ = false;
@@ -197,7 +202,7 @@ void WaypointGenerator::getPathMsg() {
 
   float time_diff_sec = static_cast<float>((current_time_ - last_time_).toSec());
   float dt = time_diff_sec > 0.0f ? time_diff_sec : 0.0001f;
- 
+
   if (!auto_land_) {
     // in auto_land the z is only velocity controlled. Therefore we don't run the smoothing.
     adaptSpeed();
@@ -205,7 +210,8 @@ void WaypointGenerator::getPathMsg() {
   output_.position_wp = output_.goto_position;
   // output_.position_wp = output_.adapted_goto_position;
   output_.angular_velocity_wp = Eigen::Vector3f::Zero();
-  avoidance::createPoseMsg(output_.position_wp, output_.orientation_wp, output_.adapted_goto_position, setpoint_yaw_rad_);
+  avoidance::createPoseMsg(output_.position_wp, output_.orientation_wp, output_.adapted_goto_position,
+                           setpoint_yaw_rad_);
 }
 
 waypointResult WaypointGenerator::getWaypoints() {
@@ -215,10 +221,11 @@ waypointResult WaypointGenerator::getWaypoints() {
 
 void WaypointGenerator::setPlannerInfo(const avoidanceOutput& input) { planner_info_ = input; }
 
-bool WaypointGenerator::getSetpointFromPath(const std::vector<Eigen::Vector3f>& path, const ros::Time& path_generation_time,
-                         float velocity, Eigen::Vector3f& setpoint) {
+bool WaypointGenerator::getSetpointFromPath(const std::vector<Eigen::Vector3f>& path,
+                                            const ros::Time& path_generation_time, float velocity,
+                                            Eigen::Vector3f& setpoint) {
   int num_pathsegments = path.size();
-  
+
   // path contains nothing meaningful
   if (num_pathsegments < 2) {
     return false;
@@ -232,18 +239,17 @@ bool WaypointGenerator::getSetpointFromPath(const std::vector<Eigen::Vector3f>& 
 
   // step through the path until the point where we should be if we had traveled perfectly with velocity along it
   float distance_left = (ros::Time::now() - path_generation_time).toSec() * velocity;
-  
-  for (int i = 1; i < num_pathsegments; i++) {
-    Eigen::Vector3f path_segment = path[i] - path[i-1];
 
-    if(distance_left > path_segment.norm()){
+  for (int i = 1; i < num_pathsegments; i++) {
+    Eigen::Vector3f path_segment = path[i] - path[i - 1];
+
+    if (distance_left > path_segment.norm()) {
       distance_left -= path_segment.norm();
     } else {
-      setpoint =  (distance_left / path_segment.norm()) * path_segment + path[i-1];
+      setpoint = (distance_left / path_segment.norm()) * path_segment + path[i - 1];
       return true;
     }
   }
   return false;
 }
-
 }

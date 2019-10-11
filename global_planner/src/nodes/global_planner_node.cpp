@@ -85,7 +85,7 @@ void GlobalPlannerNode::readParams() {
   nh_.getParam("pointcloud_topics", camera_topics);
 
   start_pos_ << start_pos_x, start_pos_y, start_pos_z;
-  
+
   initializeCameraSubscribers(camera_topics);
   global_planner_.goal_pos_ = GoalCell(start_pos_(0), start_pos_(1), start_pos_(2));
   double robot_radius;
@@ -329,9 +329,8 @@ void GlobalPlannerNode::cmdLoopCallback(const ros::TimerEvent& event) {
   avoidance_node_.checkFailsafe(since_last_cloud, since_start, hover_);
   direct_path_is_collision = global_planner_.checkCollisiontoGoal(current_position_, goal_position_);
 
-  //TODO: Switch this to waypoint generator
-  wp_generator_->updateState(current_position_, current_attitude_,
-                             goal_position_, prev_goal_position_,
+  // TODO: Switch this to waypoint generator
+  wp_generator_->updateState(current_position_, current_attitude_, goal_position_, prev_goal_position_,
                              current_velocity_, hover_, is_airborne, nav_state_, is_land_waypoint_,
                              is_takeoff_waypoint_, desired_velocity_, direct_path_is_collision);
 
@@ -344,7 +343,7 @@ void GlobalPlannerNode::plannerLoopCallback(const ros::TimerEvent& event) {
   if (is_in_goal || global_planner_.goal_is_blocked_) {
     popNextGoal();
   }
-  if(global_planner_.isOctomapExists()){
+  if (global_planner_.isOctomapExists()) {
     planPath();
     wp_generator_->setPlannerInfo(global_planner_.getAvoidanceOutput());
   }
@@ -403,9 +402,9 @@ void GlobalPlannerNode::publishSetpoint() {
   waypointResult result = wp_generator_->getWaypoints();
 
   mavros_msgs::Trajectory obst_free_path = {};
-  avoidance::transformToTrajectory(obst_free_path, avoidance::toPoseStamped(result.position_wp, result.orientation_wp), velocity_setpoint);
+  avoidance::transformToTrajectory(obst_free_path, avoidance::toPoseStamped(result.position_wp, result.orientation_wp),
+                                   velocity_setpoint);
   mavros_obstacle_free_path_pub_.publish(obst_free_path);
-
 }
 
 bool GlobalPlannerNode::isCloseToGoal() { return distance(current_goal_, last_pos_) < 1.5; }

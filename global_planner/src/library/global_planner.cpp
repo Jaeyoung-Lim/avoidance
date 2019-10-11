@@ -361,11 +361,11 @@ nav_msgs::Path GlobalPlanner::getPathMsg(const std::vector<Cell>& path) {
 
 std::vector<Eigen::Vector3f> GlobalPlanner::getPath() { return getPath(curr_path_); }
 
-std::vector<Eigen::Vector3f> GlobalPlanner::getPath(std::vector<Cell>& parse_path){
+std::vector<Eigen::Vector3f> GlobalPlanner::getPath(std::vector<Cell>& parse_path) {
   std::vector<Eigen::Vector3f> path;
 
   if (parse_path.size() == 0) return path;
-  for (int i = 0; i < parse_path.size() - 1; ++i)  path.push_back(parse_path[i].toEigen());
+  for (int i = 0; i < parse_path.size() - 1; ++i) path.push_back(parse_path[i].toEigen());
   return path;
 }
 
@@ -547,19 +547,19 @@ avoidanceOutput GlobalPlanner::getAvoidanceOutput() {
   return out;
 }
 
-bool GlobalPlanner::checkCollisiontoGoal(Eigen::Vector3f current_pos, Eigen::Vector3f goal){
+bool GlobalPlanner::checkCollisiontoGoal(Eigen::Vector3f current_pos, Eigen::Vector3f goal) {
   std::vector<Eigen::Vector3f> path;
   float collision_checking_resolution = 0.1;
   float distance = (current_pos - goal).norm();
   Eigen::Vector3f dir_vector = (current_pos - goal) / distance;
 
-  for(float ray = 0.0; ray < distance; ray+=collision_checking_resolution){
-    if(checkCollision(ray * dir_vector)) return true; //Coliison found along ray
+  for (float ray = 0.0; ray < distance; ray += collision_checking_resolution) {
+    if (checkCollision(ray * dir_vector)) return true;  // Coliison found along ray
   }
   return false;
 }
 
-bool GlobalPlanner::checkCollision(Eigen::Vector3f state){
+bool GlobalPlanner::checkCollision(Eigen::Vector3f state) {
   bool collision = true;
   double occprob = 1.0;
   uint octree_depth = 16;
@@ -567,14 +567,16 @@ bool GlobalPlanner::checkCollision(Eigen::Vector3f state){
 
   if (octree_) {
     octomap::OcTreeNode* node = octree_->search(double(state(0)), double(state(1)), double(state(2)), octree_depth);
-    if (node) occprob = octomap::probability(logodds = node->getValue());
-    else  occprob = 0.5;  // Unobserved region of the map has equal chance of being occupied / unoccupied
+    if (node)
+      occprob = octomap::probability(logodds = node->getValue());
+    else
+      occprob = 0.5;  // Unobserved region of the map has equal chance of being occupied / unoccupied
     // Assuming a optimistic planner: Unknown space is considered as unoccupied
     if (occprob <= 0.5) collision = false;
   }
   return collision;
 }
 
-bool GlobalPlanner::isOctomapExists(){  return bool(octree_); }
+bool GlobalPlanner::isOctomapExists() { return bool(octree_); }
 
 }  // namespace global_planner

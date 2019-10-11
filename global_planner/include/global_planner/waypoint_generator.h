@@ -2,9 +2,9 @@
 #define GLOBAL_PLANNER_WAYPOINT_GENERATOR_H
 
 #include <avoidance/usm.h>
+#include <Eigen/Dense>
 #include "avoidance/common.h"
 #include "global_planner/avoidance_output.h"
-#include <Eigen/Dense>
 
 #include <ros/time.h>
 
@@ -22,8 +22,8 @@ struct waypointResult {
   Eigen::Quaternionf orientation_wp;
   Eigen::Vector3f linear_velocity_wp;
   Eigen::Vector3f angular_velocity_wp;
-  Eigen::Vector3f goto_position;           // correction direction, dist=1
-  Eigen::Vector3f adapted_goto_position;   // correction direction & dist
+  Eigen::Vector3f goto_position;          // correction direction, dist=1
+  Eigen::Vector3f adapted_goto_position;  // correction direction & dist
 };
 
 class WaypointGenerator : public usm::StateMachine<PlannerState> {
@@ -63,7 +63,7 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
 
   avoidance::NavigationState nav_state_ = avoidance::NavigationState::none;
 
-//   // state
+  //   // state
   bool trigger_reset_ = false;
   bool state_changed_ = false;
   bool planner_path_exists = false;
@@ -100,7 +100,7 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
   **/
   void getPathMsg();
 
-//   bool isAltitudeChange();
+  //   bool isAltitudeChange();
 
  public:
   /**
@@ -133,12 +133,12 @@ class WaypointGenerator : public usm::StateMachine<PlannerState> {
   **/
   void updateState(const Eigen::Vector3f& act_pose, const Eigen::Quaternionf& q, const Eigen::Vector3f& goal,
                    const Eigen::Vector3f& prev_goal, const Eigen::Vector3f& vel, bool stay, bool is_airborne,
-                   const avoidance::NavigationState& nav_state, const bool is_land_waypoint, const bool is_takeoff_waypoint,
-                   const Eigen::Vector3f& desired_vel, const bool path_in_collision);
+                   const avoidance::NavigationState& nav_state, const bool is_land_waypoint,
+                   const bool is_takeoff_waypoint, const Eigen::Vector3f& desired_vel, const bool path_in_collision);
 
   bool getSetpointFromPath(const std::vector<Eigen::Vector3f>& path, const ros::Time& path_generation_time,
-                         float velocity, Eigen::Vector3f& setpoint);
-  
+                           float velocity, Eigen::Vector3f& setpoint);
+
   WaypointGenerator();
   virtual ~WaypointGenerator() = default;
 };
