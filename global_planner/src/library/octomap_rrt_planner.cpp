@@ -20,6 +20,9 @@ OctomapRrtPlanner::OctomapRrtPlanner(const ros::NodeHandle& nh, const ros::NodeH
   world_visualizer_.reset(new avoidance::WorldVisualizer(nh_, ros::this_node::getName()));
 #endif
 
+  avoidance_node_.init();
+  wp_generator_.reset(new global_planner::WaypointGenerator());
+
   pose_sub_ = nh_.subscribe("/mavros/local_position/pose", 1, &OctomapRrtPlanner::positionCallback, this);
   move_base_simple_sub_ = nh_.subscribe("/move_base_simple/goal", 1, &OctomapRrtPlanner::moveBaseSimpleCallback, this);
   desiredtrajectory_sub_ =
@@ -68,6 +71,13 @@ OctomapRrtPlanner::~OctomapRrtPlanner() {
 
 void OctomapRrtPlanner::cmdLoopCallback(const ros::TimerEvent& event) {
   hover_ = false;
+  bool is_airborne = true;
+  bool direct_path_is_collision = true;
+  bool is_land_waypoint_ = false;
+  bool is_takeoff_waypoint_ = false;
+  Eigen::Vector3f prev_goal_position_;
+  Eigen::Vector3f velocity_setpoint;
+  Eigen::Vector3f desired_velocity_;
 
   // Check if all information was received
   ros::Time now = ros::Time::now();
@@ -77,6 +87,15 @@ void OctomapRrtPlanner::cmdLoopCallback(const ros::TimerEvent& event) {
   ros::Duration since_start = now - start_time_;
 
   avoidance_node_.checkFailsafe(since_last_cloud, since_start, hover_);
+
+  // direct_path_is_collision = global_planner_.checkCollisiontoGoal(current_position_, goal_position_);
+
+  // TODO: Switch this to waypoint generator
+  wp_generator_->updateState(local_position_.cast<float>(), vehicle_attitude_, goal_.cast<float>(), prev_goal_position_.cast<float>(),
+                             local_velocity_.cast<float>(), hover_, is_airborne, nav_state_, is_land_waypoint_,
+                             is_takeoff_waypoint_, desired_velocity_, direct_path_is_collision);
+
+
   updateReference(now);
   publishSetpoint();
 }
@@ -122,15 +141,12 @@ void OctomapRrtPlanner::depthCameraCallback(const sensor_msgs::PointCloud2& msg)
 }
 
 void OctomapRrtPlanner::positionCallback(const geometry_msgs::PoseStamped& msg) {
-  local_position_(0) = msg.pose.position.x;
-  local_position_(1) = msg.pose.position.y;
-  local_position_(2) = msg.pose.position.z;
+  local_position_ = avoidance::toEigen(msg.pose.position).cast<double>();
+  vehicle_attitude_ = avoidance::toEigen(msg.pose.orientation);
 }
 
 void OctomapRrtPlanner::velocityCallback(const geometry_msgs::TwistStamped& msg) {
-  local_velocity_(0) = msg.twist.linear.x;
-  local_velocity_(1) = msg.twist.linear.y;
-  local_velocity_(2) = msg.twist.linear.z;
+  local_velocity_ = avoidance::toEigen(msg.twist.linear).cast<double>();
 }
 
 void OctomapRrtPlanner::DesiredTrajectoryCallback(const mavros_msgs::Trajectory& msg) {
@@ -149,11 +165,18 @@ void OctomapRrtPlanner::moveBaseSimpleCallback(const geometry_msgs::PoseStamped&
 }
 
 void OctomapRrtPlanner::publishSetpoint() {
+
+  global_planner::waypointResult result = wp_generator_->getWaypoints();
+
   mavros_msgs::Trajectory msg;
-  Eigen::Vector3f reference_posf = reference_pos_.cast<float>();
-  avoidance::transformToTrajectory(msg, avoidance::toPoseStamped(reference_posf, reference_att_));
+  geometry_msgs::Twist velocity_setpoint;
+
+  avoidance::transformToTrajectory(msg, avoidance::toPoseStamped(result.position_wp, result.orientation_wp),
+                                   velocity_setpoint);
+
   msg.header.frame_id = frame_id_;
   msg.header.stamp = ros::Time::now();
+
   trajectory_pub_.publish(msg);
 }
 

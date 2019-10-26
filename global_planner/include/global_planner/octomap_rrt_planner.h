@@ -31,7 +31,7 @@
 #include <avoidance/avoidance_node.h>
 #include <avoidance/common.h>
 #include <global_planner/octomap_ompl_rrt.h>
-
+#include <global_planner/waypoint_generator.h>
 #ifndef DISABLE_SIMULATION
 #include <avoidance/rviz_world_loader.h>
 #endif
@@ -80,7 +80,9 @@ class OctomapRrtPlanner {
   Eigen::Vector3d local_position_, local_velocity_;
   Eigen::Vector3d reference_pos_;
   Eigen::Quaternionf reference_att_;
+  Eigen::Quaternionf vehicle_attitude_;
   Eigen::Vector3d goal_;
+  avoidance::NavigationState nav_state_ = avoidance::NavigationState::none;
 
   std::vector<Eigen::Vector3d> current_path_;
   std::vector<cameraData> cameras_;
@@ -90,9 +92,12 @@ class OctomapRrtPlanner {
 
   OctomapOmplRrt rrt_planner_;
   avoidance::AvoidanceNode avoidance_node_;
+  std::unique_ptr<global_planner::WaypointGenerator> wp_generator_;
+
 #ifndef DISABLE_SIMULATION
   std::unique_ptr<avoidance::WorldVisualizer> world_visualizer_;
 #endif
+
   void cmdLoopCallback(const ros::TimerEvent& event);
   void plannerLoopCallback(const ros::TimerEvent& event);
   void octomapFullCallback(const octomap_msgs::Octomap& msg);
