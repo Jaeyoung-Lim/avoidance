@@ -17,7 +17,7 @@ OctomapRrtPlanner::OctomapRrtPlanner(const ros::NodeHandle& nh, const ros::NodeH
       plannerloop_dt_(1.0),
       rrt_planner_(nh, nh_private) {
 #ifndef DISABLE_SIMULATION
-  world_visualizer_.reset(new avoidance::WorldVisualizer(nh_));
+  world_visualizer_.reset(new avoidance::WorldVisualizer(nh_, ros::this_node::getName()));
 #endif
 
   pose_sub_ = nh_.subscribe("/mavros/local_position/pose", 1, &OctomapRrtPlanner::positionCallback, this);
