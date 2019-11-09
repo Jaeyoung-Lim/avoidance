@@ -77,7 +77,6 @@ void OctomapRrtPlanner::cmdLoopCallback(const ros::TimerEvent& event) {
   bool is_takeoff_waypoint_ = false;
   Eigen::Vector3f prev_goal_position_;
   Eigen::Vector3f velocity_setpoint;
-  Eigen::Vector3f desired_velocity_;
 
   // Check if all information was received
   ros::Time now = ros::Time::now();
@@ -93,7 +92,7 @@ void OctomapRrtPlanner::cmdLoopCallback(const ros::TimerEvent& event) {
   // TODO: Switch this to waypoint generator
   wp_generator_->updateState(local_position_.cast<float>(), vehicle_attitude_, goal_.cast<float>(), prev_goal_position_.cast<float>(),
                              local_velocity_.cast<float>(), hover_, is_airborne, nav_state_, is_land_waypoint_,
-                             is_takeoff_waypoint_, desired_velocity_, direct_path_is_collision);
+                             is_takeoff_waypoint_, desired_velocity_.cast<float>(), direct_path_is_collision);
 
 
   updateReference(now);
@@ -155,6 +154,10 @@ void OctomapRrtPlanner::DesiredTrajectoryCallback(const mavros_msgs::Trajectory&
     goal_(0) = msg.point_1.position.x;
     goal_(1) = msg.point_1.position.y;
     goal_(2) = msg.point_1.position.z;
+    desired_velocity_(0) = msg.point_1.velocity.x;
+    desired_velocity_(1) = msg.point_1.velocity.y;
+    desired_velocity_(2) = msg.point_1.velocity.z;
+
   }
 }
 

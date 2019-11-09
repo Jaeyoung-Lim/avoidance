@@ -78,10 +78,11 @@ class OctomapRrtPlanner {
   std::string frame_id_;
 
   Eigen::Vector3d local_position_, local_velocity_;
-  Eigen::Vector3d reference_pos_;
+  Eigen::Vector3d reference_pos_, desired_velocity_;
   Eigen::Quaternionf reference_att_;
   Eigen::Quaternionf vehicle_attitude_;
   Eigen::Vector3d goal_;
+
   avoidance::NavigationState nav_state_ = avoidance::NavigationState::none;
 
   std::vector<Eigen::Vector3d> current_path_;
