@@ -87,3 +87,15 @@ void OctomapOmplRrt::solutionPathToTrajectoryPoints(ompl::geometric::PathGeometr
     trajectory_points->emplace_back(position);
   }
 }
+
+global_planner::avoidanceOutput OctomapOmplRrt::getAvoidanceOutput(std::vector<Eigen::Vector3d> trajectory_points) {
+  global_planner::avoidanceOutput out;
+  out.last_path_time = ros::Time::now();
+  out.cruise_velocity = 5.0;
+  std::vector<Eigen::Vector3f> trajectory;
+  for( auto point : trajectory_points ){
+    trajectory.emplace_back(point.cast<float>());
+  }
+  out.path_node_positions = trajectory;
+  return out;
+}

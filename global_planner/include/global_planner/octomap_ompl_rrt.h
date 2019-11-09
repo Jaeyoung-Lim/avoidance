@@ -15,6 +15,7 @@
 #include <octomap/octomap.h>
 #include <Eigen/Dense>
 
+#include <global_planner/avoidance_output.h>
 #include <global_planner/ompl_setup.h>
 
 using namespace std;
@@ -40,6 +41,8 @@ class OctomapOmplRrt {
   bool getPath(const Eigen::Vector3d& start, const Eigen::Vector3d& goal, std::vector<Eigen::Vector3d>* path);
   void solutionPathToTrajectoryPoints(ompl::geometric::PathGeometric& path,
                                       std::vector<Eigen::Vector3d>* trajectory_points) const;
+  global_planner::avoidanceOutput getAvoidanceOutput(std::vector<Eigen::Vector3d> trajectory_points);
+
 };
 
 #endif

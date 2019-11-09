@@ -232,6 +232,8 @@ void OctomapRrtPlanner::planWithSimpleSetup() {
     rrt_planner_.setBounds(lower, upper);
     rrt_planner_.setupProblem();
     rrt_planner_.getPath(local_position_, goal_, &current_path_);
+    wp_generator_->setPlannerInfo(rrt_planner_.getAvoidanceOutput(current_path_));
+
     if (current_path_.empty()) {
       current_path_.emplace_back(reference_pos_);
       std::cout << "Path is empty" << std::endl;
