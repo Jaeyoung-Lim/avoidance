@@ -88,7 +88,7 @@ void OctomapRrtPlanner::cmdLoopCallback(const ros::TimerEvent& event) {
   avoidance_node_.checkFailsafe(since_last_cloud, since_start, hover_);
 
   // direct_path_is_collision = global_planner_.checkCollisiontoGoal(current_position_, goal_position_);
-
+  direct_path_is_collision = false;
   // TODO: Switch this to waypoint generator
   wp_generator_->updateState(local_position_.cast<float>(), vehicle_attitude_, goal_.cast<float>(), prev_goal_position_.cast<float>(),
                              local_velocity_.cast<float>(), hover_, is_airborne, nav_state_, is_land_waypoint_,
@@ -168,11 +168,13 @@ void OctomapRrtPlanner::moveBaseSimpleCallback(const geometry_msgs::PoseStamped&
 }
 
 void OctomapRrtPlanner::publishSetpoint() {
+  mavros_msgs::Trajectory msg;
+  geometry_msgs::Twist velocity_setpoint{};
+  velocity_setpoint.linear.x = NAN;
+  velocity_setpoint.linear.y = NAN;
+  velocity_setpoint.linear.z = NAN;
 
   global_planner::waypointResult result = wp_generator_->getWaypoints();
-
-  mavros_msgs::Trajectory msg;
-  geometry_msgs::Twist velocity_setpoint;
 
   avoidance::transformToTrajectory(msg, avoidance::toPoseStamped(result.position_wp, result.orientation_wp),
                                    velocity_setpoint);
